@@ -27,3 +27,40 @@ def version_key(version: str) -> tuple[int, ...]:
     else:
         suffix = (0, 0)
     return tuple(parts) + suffix
+
+
+def _minor(version: str) -> int:
+    """Return the minor version, e.g. 30 for 3.30.0, or 0 for master."""
+    match = re.match(r"\d+\.(\d+)", version)
+    return int(match.group(1)) if match else 0
+
+
+def is_lts(version: str) -> bool:
+    """Return True if the version is on an LTS branch, e.g. 3.27.x or 3.30.x."""
+    minor = _minor(version)
+    if minor < 11:
+        return minor % 3 == 1  # 3.7, 3.10
+    return minor % 3 == 0  # 3.12, 3.15, ...
+
+
+def support_end(version: str) -> tuple[str, str]:
+    """Return when the version's branch goes out of support.
+
+    E.g. ("2028-12", "December 2028") for 3.27.x.
+    """
+    # Same formula as the legacy release.py in the infra repo. LTS branches
+    # come 1.5 years apart, so their support ends alternate between December
+    # of one year and August of the next. The value below is a year as a
+    # decimal number. (minor + 1) / 2 is a whole number or ends in .5, so
+    # adding 2014.4 makes it end in .4 or .9. Rounding then gives the year:
+    # .4 rounds down and means December, .9 rounds up and means August.
+    # E.g. 3.27: 2028.4 -> December 2028, 3.30: 2029.9 -> August 2030.
+    minor = _minor(version)
+    if minor < 11:
+        value = minor / 2 + 2014.4
+    else:
+        value = (minor + 1) / 2 + 2014.4
+    year = round(value)
+    if value - year > 0.2:
+        return f"{year}-12", f"December {year}"
+    return f"{year}-08", f"August {year}"

@@ -1,4 +1,6 @@
-from cfengine_cli.release.metadata import version_key
+import pytest
+
+from cfengine_cli.release.metadata import is_lts, support_end, version_key
 
 # Every version in the published enterprise releases.json, highest first
 EXPECTED = [
@@ -51,3 +53,42 @@ def test_version_key_unknown() -> None:
 def test_version_key_sort_order() -> None:
     # Sorting as strings scrambles the order, e.g. 3.10.0 before 3.9.2
     assert sorted(sorted(EXPECTED), key=version_key, reverse=True) == EXPECTED
+
+
+@pytest.mark.parametrize(
+    "version", ["3.7.0", "3.10.0", "3.12.0", "3.24.3", "3.27.0", "3.30.0", "3.30.x"]
+)
+def test_is_lts(version: str) -> None:
+    assert is_lts(version)
+
+
+@pytest.mark.parametrize(
+    "version", ["3.8.0", "3.11.0", "3.26.0", "3.28.0", "3.29.0", "3.31.0", "master"]
+)
+def test_is_not_lts(version: str) -> None:
+    assert not is_lts(version)
+
+
+# supported_until of each LTS branch in the published enterprise releases.json,
+# plus 3.30.x
+@pytest.mark.parametrize(
+    "version, date",
+    [
+        ("3.7.x", "2018-08"),
+        ("3.10.x", "2019-12"),
+        ("3.12.x", "2021-08"),
+        ("3.15.x", "2022-12"),
+        ("3.18.x", "2024-08"),
+        ("3.21.x", "2025-12"),
+        ("3.24.x", "2027-08"),
+        ("3.27.x", "2028-12"),
+        ("3.30.x", "2030-08"),
+    ],
+)
+def test_support_end_date(version: str, date: str) -> None:
+    assert support_end(version)[0] == date
+
+
+def test_support_end_text() -> None:
+    assert support_end("3.27.0") == ("2028-12", "December 2028")
+    assert support_end("3.30.0") == ("2030-08", "August 2030")
