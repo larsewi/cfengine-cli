@@ -1,6 +1,7 @@
 import os
 
 from cfengine_cli.release.build_output import BuildOutput, read_build_output
+from cfengine_cli.release.checksums import verify_checksums
 from cfengine_cli.utils import UserError
 
 
@@ -34,7 +35,14 @@ def release(
 
     build = read_build_output(input_dir)
     _print_build_output(build)
+    _verify_build_output(build)
     return 0
+
+
+def _verify_build_output(build: BuildOutput) -> None:
+    for output_dir in [*build.labels.values(), build.tarballs]:
+        verify_checksums(output_dir.sha256sums)
+    print("Checksums OK")
 
 
 def _print_build_output(build: BuildOutput) -> None:
