@@ -1,5 +1,6 @@
 import os
 
+from cfengine_cli.release.build_output import BuildOutput, read_build_output
 from cfengine_cli.utils import UserError
 
 
@@ -30,7 +31,21 @@ def release(
         upload,
         dry_run,
     )
+
+    build = read_build_output(input_dir)
+    _print_build_output(build)
     return 0
+
+
+def _print_build_output(build: BuildOutput) -> None:
+    print(f"Found {len(build.labels)} labels:")
+    for label, output_dir in build.labels.items():
+        print(f"  {label}")
+        for package in output_dir.packages:
+            print(f"    {package.name}")
+    print(f"Found {len(build.tarballs.packages)} tarballs:")
+    for tarball in build.tarballs.packages:
+        print(f"  {tarball.name}")
 
 
 def _print_summary(
