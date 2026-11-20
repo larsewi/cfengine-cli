@@ -1,0 +1,49 @@
+import argparse
+
+
+def add_release_args(sp: argparse.ArgumentParser) -> None:
+    _ = sp.add_argument(
+        "--project",
+        required=True,
+        choices=["enterprise", "community"],
+        help="Which edition to release",
+    )
+    _ = sp.add_argument(
+        "--version",
+        required=True,
+        help="Version to release, e.g. 3.30.0, or 3.30.x / master for nightlies",
+    )
+    _ = sp.add_argument(
+        "--branch",
+        required=True,
+        help="Branch the release belongs to, e.g. 3.30.x or nightly-master",
+    )
+    _ = sp.add_argument(
+        "--debug",
+        action="store_true",
+        help="Mark as a debug release, not shown on the downloads page",
+    )
+    _ = sp.add_argument(
+        "--input",
+        required=True,
+        help="Directory with the build output, one subdirectory per label",
+    )
+    _ = sp.add_argument(
+        "--output",
+        required=True,
+        help="Root directory to write release/, repo/ and release-data/ to",
+    )
+    _ = sp.add_argument(
+        "--no-sign", action="store_true", help="Don't sign the packages"
+    )
+    _ = sp.add_argument(
+        "--no-repo",
+        action="store_true",
+        help="Don't update the community APT and YUM repositories",
+    )
+    _ = sp.add_argument(
+        "--no-upload", action="store_true", help="Don't upload the metadata to S3"
+    )
+    _ = sp.add_argument(
+        "--dry-run", action="store_true", help="Only print what would be done"
+    )
