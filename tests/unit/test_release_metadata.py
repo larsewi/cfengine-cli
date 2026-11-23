@@ -1,6 +1,11 @@
 import pytest
 
-from cfengine_cli.release.metadata import is_lts, support_end, version_key
+from cfengine_cli.release.metadata import (
+    is_lts,
+    support_end,
+    version_key,
+    version_title,
+)
 
 # Every version in the published enterprise releases.json, highest first
 EXPECTED = [
@@ -92,3 +97,23 @@ def test_support_end_date(version: str, date: str) -> None:
 def test_support_end_text() -> None:
     assert support_end("3.27.0") == ("2028-12", "December 2028")
     assert support_end("3.30.0") == ("2030-08", "August 2030")
+
+
+# The first 8 are from the published release-data/<project>/<version>.json
+@pytest.mark.parametrize(
+    "project, version, title",
+    [
+        ("enterprise", "master", "master non-LTS (unsupported)"),
+        ("enterprise", "3.27.x", "3.27.x LTS (supported until December 2028)"),
+        ("enterprise", "3.27.0", "3.27.0 LTS (supported until December 2028)"),
+        ("enterprise", "3.26.0", "3.26.0 non-LTS (unsupported)"),
+        ("community", "master", "master non-LTS"),
+        ("community", "3.27.x", "3.27.x LTS"),
+        ("community", "3.27.0", "3.27.0 LTS"),
+        ("community", "3.26.0", "3.26.0 non-LTS"),
+        ("enterprise", "3.30.0", "3.30.0 LTS (supported until August 2030)"),
+        ("enterprise", "3.31.0", "3.31.0 non-LTS (unsupported)"),
+    ],
+)
+def test_version_title(project: str, version: str, title: str) -> None:
+    assert version_title(project, version) == title

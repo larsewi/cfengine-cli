@@ -64,3 +64,21 @@ def support_end(version: str) -> tuple[str, str]:
     if value - year > 0.2:
         return f"{year}-12", f"December {year}"
     return f"{year}-08", f"August {year}"
+
+
+def version_title(project: str, version: str) -> str:
+    """Return the title shown for a version.
+
+    E.g. "3.27.0 LTS (supported until December 2028)" for enterprise.
+    """
+    enterprise = project == "enterprise"
+    if is_lts(version):
+        title = f"{version} LTS"
+        if enterprise:
+            _, until = support_end(version)
+            title += f" (supported until {until})"
+        return title
+    title = f"{version} non-LTS"
+    if enterprise:
+        title += " (unsupported)"
+    return title
