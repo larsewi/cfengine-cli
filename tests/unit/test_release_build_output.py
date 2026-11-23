@@ -44,6 +44,24 @@ def test_read_build_output(build_dir: Path) -> None:
         "cfengine-masterfiles-3.30.0.tar.gz",
     ]
     assert build.tarballs.sha256sums == build_dir / "tarballs" / "sha256sums.txt"
+    assert build.vagrant is None
+
+
+def test_read_build_output_with_vagrant(build_dir: Path) -> None:
+    tarball = "CFEngine_Enterprise_vagrant_quickstart-3.30.0-1.tar.gz"
+    _touch(build_dir / "vagrant" / tarball)
+    _touch(build_dir / "vagrant" / "sha256sums.txt")
+    build = read_build_output(str(build_dir))
+    assert build.vagrant is not None
+    assert [p.name for p in build.vagrant.packages] == [tarball]
+
+
+def test_read_build_output_vagrant_without_sha256sums(build_dir: Path) -> None:
+    _touch(
+        build_dir / "vagrant" / "CFEngine_Enterprise_vagrant_quickstart-3.30.0-1.tar.gz"
+    )
+    with pytest.raises(UserError, match="No sha256sums.txt"):
+        _ = read_build_output(str(build_dir))
 
 
 def test_read_build_output_without_tarballs(build_dir: Path) -> None:

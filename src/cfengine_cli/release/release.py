@@ -40,7 +40,10 @@ def release(
 
 
 def _verify_build_output(build: BuildOutput) -> None:
-    for output_dir in [*build.labels.values(), build.tarballs]:
+    output_dirs = [*build.labels.values(), build.tarballs]
+    if build.vagrant is not None:
+        output_dirs.append(build.vagrant)
+    for output_dir in output_dirs:
         verify_checksums(output_dir.sha256sums)
     print("Checksums OK")
 
@@ -54,6 +57,10 @@ def _print_build_output(build: BuildOutput) -> None:
     print(f"Found {len(build.tarballs.packages)} tarballs:")
     for tarball in build.tarballs.packages:
         print(f"  {tarball.name}")
+    if build.vagrant is not None:
+        print("Found Vagrant quickstart:")
+        for tarball in build.vagrant.packages:
+            print(f"  {tarball.name}")
 
 
 def _print_summary(

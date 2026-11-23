@@ -5,6 +5,7 @@ from cfengine_cli.utils import UserError
 
 LABEL_PREFIX = "PACKAGES_"
 TARBALLS_DIR = "tarballs"
+VAGRANT_DIR = "vagrant"
 SHA256SUMS = "sha256sums.txt"
 # .tar.gz also covers .pkg.tar.gz
 PACKAGE_SUFFIXES = (".deb", ".rpm", ".msi", ".tar.gz")
@@ -20,6 +21,8 @@ class OutputDir:
 class BuildOutput:
     labels: dict[str, OutputDir]
     tarballs: OutputDir
+    # The Vagrant quickstart. Only enterprise builds have it.
+    vagrant: OutputDir | None
 
 
 def _read_output_dir(directory: Path) -> OutputDir:
@@ -42,16 +45,19 @@ def read_build_output(input_dir: str) -> BuildOutput:
     """Read a build-in-container output directory.
 
     It has one subdirectory per label, e.g. PACKAGES_x86_64_linux_debian_12,
-    and a tarballs subdirectory.
+    a tarballs subdirectory, and optionally a vagrant subdirectory.
     """
     labels: dict[str, OutputDir] = {}
     tarballs: OutputDir | None = None
+    vagrant: OutputDir | None = None
 
     for entry in sorted(Path(input_dir).iterdir()):
         if entry.is_dir() and entry.name.startswith(LABEL_PREFIX):
             labels[entry.name] = _read_output_dir(entry)
         elif entry.is_dir() and entry.name == TARBALLS_DIR:
             tarballs = _read_output_dir(entry)
+        elif entry.is_dir() and entry.name == VAGRANT_DIR:
+            vagrant = _read_output_dir(entry)
         else:
             raise UserError(f"Unexpected '{entry}' in build output")
 
@@ -59,4 +65,4 @@ def read_build_output(input_dir: str) -> BuildOutput:
         raise UserError(f"No {LABEL_PREFIX}* directories in '{input_dir}'")
     if tarballs is None:
         raise UserError(f"No {TARBALLS_DIR} directory in '{input_dir}'")
-    return BuildOutput(labels, tarballs)
+    return BuildOutput(labels, tarballs, vagrant)
