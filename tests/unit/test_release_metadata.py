@@ -1,8 +1,14 @@
+import copy
+import datetime
+
 import pytest
 
 from cfengine_cli.release.metadata import (
+    Release,
+    ReleasesData,
     is_lts,
     support_end,
+    update_releases,
     version_key,
     version_title,
 )
@@ -117,3 +123,139 @@ def test_support_end_text() -> None:
 )
 def test_version_title(project: str, version: str, title: str) -> None:
     assert version_title(project, version) == title
+
+
+TODAY = datetime.date(2027, 6, 1)
+
+
+@pytest.fixture
+def releases_data() -> ReleasesData:
+    """A small releases.json, shaped like the published enterprise one."""
+    return {
+        "lts_branches": [
+            {"branch_name": "3.27.x", "supported_until": "2028-12"},
+            {"branch_name": "3.24.x", "supported_until": "2027-08"},
+        ],
+        "releases": [
+            Release(version="master", debug=True, release_date="nightly", alpha=True),
+            Release(version="3.29.0", debug=False, latest=True, latest_stable=True),
+            Release(
+                version="3.27.x",
+                debug=True,
+                release_date="nightly",
+                lts_branch="3.27.x",
+            ),
+            Release(
+                version="3.27.3",
+                debug=False,
+                lts_branch="3.27.x",
+                latest_on_branch=True,
+                latestLTS=True,
+            ),
+            Release(
+                version="3.24.6",
+                debug=False,
+                lts_branch="3.24.x",
+                latest_on_branch=True,
+            ),
+            Release(version="3.15.0b1", debug=False, beta=True),
+        ],
+    }
+
+
+def _flags(data: ReleasesData) -> dict[str, list[str]]:
+    """Return which versions have which latest flags."""
+    flags = ("latest", "latest_stable", "latest_on_branch", "latestLTS")
+    return {
+        f: [r["version"] for r in data["releases"] if dict(r).get(f)] for f in flags
+    }
+
+
+def _entry(data: ReleasesData, version: str) -> Release:
+    return next(r for r in data["releases"] if r["version"] == version)
+
+
+def test_update_releases_lts(releases_data: ReleasesData) -> None:
+    data = update_releases(
+        releases_data, "enterprise", "3.30.0", "3.30.x", False, TODAY
+    )
+    assert _entry(data, "3.30.0") == {
+        "version": "3.30.0",
+        "URL": "https://cfengine-package-repos.s3.amazonaws.com/release-data/enterprise/3.30.0.json",
+        "debug": False,
+        "release_date": "2027-06-01",
+        "lts_branch": "3.30.x",
+        "latest": True,
+        "latest_stable": True,
+        "latest_on_branch": True,
+        "latestLTS": True,
+    }
+    assert data["lts_branches"][0] == {
+        "branch_name": "3.30.x",
+        "supported_until": "2030-08",
+    }
+    assert _flags(data) == {
+        "latest": ["3.30.0"],
+        "latest_stable": ["3.30.0"],
+        "latest_on_branch": ["3.30.0", "3.27.3", "3.24.6"],
+        "latestLTS": ["3.30.0"],
+    }
+
+
+def test_update_releases_non_lts(releases_data: ReleasesData) -> None:
+    data = update_releases(
+        releases_data, "enterprise", "3.31.0", "3.31.x", False, TODAY
+    )
+    assert "lts_branch" not in _entry(data, "3.31.0")
+    assert len(data["lts_branches"]) == 2
+    assert _flags(data) == {
+        "latest": ["3.31.0"],
+        "latest_stable": ["3.31.0"],
+        "latest_on_branch": ["3.27.3", "3.24.6"],
+        "latestLTS": ["3.27.3"],
+    }
+
+
+def test_update_releases_enterprise_master(releases_data: ReleasesData) -> None:
+    data = update_releases(releases_data, "enterprise", "master", "master", True, TODAY)
+    # No "alpha": the legacy release.py set it only because "master" contains
+    # an "a"
+    assert _entry(data, "master") == {
+        "version": "master",
+        "URL": "https://cfengine-package-repos.s3.amazonaws.com/release-data/enterprise/master.json",
+        "debug": True,
+        "release_date": "nightly",
+    }
+    assert data["releases"][0]["version"] == "master"
+    assert _flags(data) == _flags(releases_data)
+
+
+def test_update_releases_community_master(releases_data: ReleasesData) -> None:
+    data = update_releases(
+        releases_data, "community", "master", "nightly-master", True, TODAY
+    )
+    assert _entry(data, "master").get("lts_branch") == "nightly-master"
+    assert data["lts_branches"][0]["branch_name"] == "nightly-master"
+
+
+def test_update_releases_replaces_existing(releases_data: ReleasesData) -> None:
+    data = update_releases(
+        releases_data, "enterprise", "3.27.3", "3.27.x", False, TODAY
+    )
+    assert [r["version"] for r in data["releases"]].count("3.27.3") == 1
+    assert _entry(data, "3.27.3").get("release_date") == "2027-06-01"
+
+
+def test_update_releases_skips_old_beta(releases_data: ReleasesData) -> None:
+    for release in releases_data["releases"]:
+        if release["version"] != "3.15.0b1":
+            release["debug"] = True
+    data = update_releases(releases_data, "enterprise", "master", "master", True, TODAY)
+    assert _flags(data)["latest"] == ["3.15.0b1"]
+    assert _flags(data)["latest_stable"] == []
+
+
+def test_update_releases_does_not_modify_input(releases_data: ReleasesData) -> None:
+    original = copy.deepcopy(releases_data)
+    _ = update_releases(releases_data, "enterprise", "3.30.0", "3.30.x", False, TODAY)
+    assert releases_data == original

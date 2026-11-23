@@ -1,4 +1,49 @@
+import copy
+import datetime
 import re
+from typing import Required, TypedDict
+
+RELEASE_DATA_URL = "https://cfengine-package-repos.s3.amazonaws.com/release-data"
+
+
+class LtsBranch(TypedDict):
+    """An entry in lts_branches in releases.json."""
+
+    branch_name: str  # e.g. 3.27.x, or nightly-3.27.x for community nightlies
+    supported_until: str  # YYYY-MM
+
+
+class Release(TypedDict, total=False):
+    """An entry in releases in releases.json. Old entries lack some keys."""
+
+    version: Required[str]  # e.g. 3.27.0, or 3.27.x / master for nightlies
+    URL: str  # Of release-data/<project>/<version>.json.
+    debug: bool  # Nightly, hidden from downloads and from the latest flags
+    release_date: str  # YYYY-MM-DD, or "nightly"
+    lts_branch: str  # branch_name of the LTS branch it belongs to
+    alpha: bool  # Legacy, only on old entries
+    beta: bool  # Legacy, only on old entries like 3.15.0b1
+    latest: bool  # Newest non-debug release
+    latest_stable: bool  # Newest non-debug release that is not a beta
+    latest_on_branch: bool  # Newest stable release on its LTS branch
+    latestLTS: bool  # latest_on_branch of the newest LTS branch
+
+
+class ReleasesData(TypedDict):
+    """The contents of releases.json."""
+
+    lts_branches: list[LtsBranch]
+    releases: list[Release]
+
+
+def is_nightly(version: str) -> bool:
+    """Return True for master and branch nightlies like 3.30.x."""
+    return version == "master" or version.endswith(".x")
+
+
+def release_data_url(project: str, version: str) -> str:
+    """Return the URL of release-data/<project>/<version>.json."""
+    return f"{RELEASE_DATA_URL}/{project}/{version}.json"
 
 
 def version_key(version: str) -> tuple[int, ...]:
@@ -82,3 +127,102 @@ def version_title(project: str, version: str) -> str:
     if enterprise:
         title += " (unsupported)"
     return title
+
+
+def update_releases(
+    releases_data: ReleasesData,
+    project: str,
+    version: str,
+    branch: str,
+    debug: bool,
+    today: datetime.date,
+) -> ReleasesData:
+    """Returns a copy of releases.json with the version added and the latest flags redone."""
+    data = copy.deepcopy(releases_data)
+    branches = data["lts_branches"]
+
+    releases = _without_version(data["releases"], version)
+    release = _new_release(project, version, debug, today)
+    releases.append(release)
+
+    # Community master nightlies use the nightly-master branch
+    if is_lts(version) or branch == "nightly-master":
+        _attach_to_branch(release, branches, branch)
+
+    releases.sort(key=lambda r: version_key(r["version"]), reverse=True)
+    _clear_latest_flags(releases)
+    _set_latest_flags(releases, branches)
+
+    return {"lts_branches": branches, "releases": releases}
+
+
+def _without_version(releases: list[Release], version: str) -> list[Release]:
+    """Drop any existing entry for the version, so re-releasing does not become a duplicate entry."""
+    return [r for r in releases if r["version"] != version]
+
+
+def _new_release(
+    project: str, version: str, debug: bool, today: datetime.date
+) -> Release:
+    return {
+        "version": version,
+        "URL": release_data_url(project, version),
+        "debug": debug,
+        "release_date": "nightly" if is_nightly(version) else str(today),
+    }
+
+
+def _attach_to_branch(release: Release, branches: list[LtsBranch], branch: str) -> None:
+    """Attach the release to its branch.
+
+    So cf-remote can expire it, and the per-branch flags can find it.
+    """
+    release["lts_branch"] = branch
+    # Add the branch the first time a release is made on it. Newest first,
+    # as _set_branch_flags expects.
+    if not any(b["branch_name"] == branch for b in branches):
+        date, _ = support_end(release["version"])
+        branches.insert(0, {"branch_name": branch, "supported_until": date})
+
+
+def _clear_latest_flags(releases: list[Release]) -> None:
+    """Drop existing latest flags so they can be recomputed."""
+    for release in releases:
+        _ = release.pop("latest", None)
+        _ = release.pop("latest_stable", None)
+        _ = release.pop("latest_on_branch", None)
+        _ = release.pop("latestLTS", None)
+
+
+def _set_latest_flags(releases: list[Release], branches: list[LtsBranch]) -> None:
+    """Set the latest flags. releases must be sorted newest first."""
+    # Nightlies are debug releases and never get the latest flags. Only the
+    # first, i.e. newest, entry gets the flag.
+    published = [r for r in releases if not r.get("debug")]
+    if published:
+        published[0]["latest"] = True
+
+    # Skip old betas like 3.15.0b1
+    stable = [r for r in published if "b" not in r["version"]]
+    if stable:
+        stable[0]["latest_stable"] = True
+
+    _set_branch_flags(stable, branches)
+
+
+def _set_branch_flags(stable: list[Release], branches: list[LtsBranch]) -> None:
+    """Mark the newest stable release on each branch.
+
+    lts_branches is newest first, so the first branch with a stable release
+    also holds the latest LTS release. cf-remote uses latestLTS as its
+    default version.
+    """
+    found_latest_lts = False
+    for b in branches:
+        on_branch = [r for r in stable if r.get("lts_branch") == b["branch_name"]]
+        if not on_branch:
+            continue
+        on_branch[0]["latest_on_branch"] = True
+        if not found_latest_lts:
+            on_branch[0]["latestLTS"] = True
+            found_latest_lts = True
