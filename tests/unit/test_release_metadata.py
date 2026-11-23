@@ -4,11 +4,13 @@ import datetime
 import pytest
 
 from cfengine_cli.release.metadata import (
+    NON_LTS_NOTE,
     Release,
     ReleasesData,
     is_lts,
     support_end,
     update_releases,
+    version_document,
     version_key,
     version_title,
 )
@@ -259,3 +261,34 @@ def test_update_releases_does_not_modify_input(releases_data: ReleasesData) -> N
     original = copy.deepcopy(releases_data)
     _ = update_releases(releases_data, "enterprise", "3.30.0", "3.30.x", False, TODAY)
     assert releases_data == original
+
+
+def test_version_document() -> None:
+    doc = version_document("enterprise", "3.30.0", "3.30.x", {}, ["A footnote"], TODAY)
+    assert doc == {
+        "project": "enterprise",
+        "version": "3.30.0 LTS (supported until August 2030)",
+        "artifacts": {},
+        "footnotes": ["A footnote"],
+    }
+
+
+@pytest.mark.parametrize(
+    "project, version, branch, keys",
+    [
+        ("enterprise", "3.30.0", "3.30.x", []),
+        ("enterprise", "3.31.0", "3.31.x", ["note"]),
+        ("enterprise", "master", "master", ["nightly_release_date", "note"]),
+        ("community", "master", "nightly-master", ["nightly_release_date"]),
+        ("community", "3.30.x", "nightly-3.30.x", ["nightly_release_date"]),
+    ],
+)
+def test_version_document_keys(
+    project: str, version: str, branch: str, keys: list[str]
+) -> None:
+    doc = version_document(project, version, branch, {}, [], TODAY)
+    assert set(doc) == {"project", "version", "artifacts", "footnotes", *keys}
+    if "nightly_release_date" in keys:
+        assert doc.get("nightly_release_date") == "2027-06-01"
+    if "note" in keys:
+        assert doc.get("note") == NON_LTS_NOTE

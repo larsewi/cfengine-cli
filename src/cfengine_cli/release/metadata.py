@@ -36,6 +36,39 @@ class ReleasesData(TypedDict):
     releases: list[Release]
 
 
+class Artifact(TypedDict, total=False):
+    """A downloadable file in release-data/<project>/<version>.json."""
+
+    Title: Required[str]  # e.g. Debian 12
+    Arch: Required[str]  # e.g. x86_64, or "no arch"
+    classexpr: Required[str]  # Selects the package in self-upgrade policy
+    Published: Required[bool]  # False hides it from the downloads page
+    URL: Required[str]  # cf-remote reads "URL"
+    SHA256: Required[str]
+    package: str  # Build label, e.g. PACKAGES_x86_64_linux_debian_12
+    Footnote: int  # 1-based index into footnotes
+    Instructions: str  # Link to installation docs
+
+
+class VersionDocument(TypedDict, total=False):
+    """The contents of release-data/<project>/<version>.json."""
+
+    project: Required[str]
+    version: Required[str]  # The title, from version_title()
+    nightly_release_date: str  # Only for nightlies
+    note: str  # Only for non-LTS versions
+    # Section title, e.g. "Policy Server", mapped to its artifacts
+    artifacts: Required[dict[str, list[Artifact]]]
+    footnotes: Required[list[str]]
+
+
+NON_LTS_NOTE = (
+    'Please note that <a href="/supported-versions/">non-LTS releases are '
+    "unsupported</a>, i.e. excluded from CFEngine Enterprise support "
+    "contract, and we do not recommend installing them in production."
+)
+
+
 def is_nightly(version: str) -> bool:
     """Return True for master and branch nightlies like 3.30.x."""
     return version == "master" or version.endswith(".x")
@@ -145,8 +178,7 @@ def update_releases(
     release = _new_release(project, version, debug, today)
     releases.append(release)
 
-    # Community master nightlies use the nightly-master branch
-    if is_lts(version) or branch == "nightly-master":
+    if _in_lts_branches(version, branch):
         _attach_to_branch(release, branches, branch)
 
     releases.sort(key=lambda r: version_key(r["version"]), reverse=True)
@@ -154,6 +186,16 @@ def update_releases(
     _set_latest_flags(releases, branches)
 
     return {"lts_branches": branches, "releases": releases}
+
+
+def _in_lts_branches(version: str, branch: str) -> bool:
+    """Return True if the release is listed under a branch in lts_branches.
+
+    That is LTS versions, and community master nightlies. master is not LTS,
+    but the legacy release.py has always listed it under the nightly-master
+    branch, which makes "cf-remote install --version nightly-master" work.
+    """
+    return is_lts(version) or branch == "nightly-master"
 
 
 def _without_version(releases: list[Release], version: str) -> list[Release]:
@@ -226,3 +268,27 @@ def _set_branch_flags(stable: list[Release], branches: list[LtsBranch]) -> None:
         if not found_latest_lts:
             on_branch[0]["latestLTS"] = True
             found_latest_lts = True
+
+
+def version_document(
+    project: str,
+    version: str,
+    branch: str,
+    artifacts: dict[str, list[Artifact]],
+    footnotes: list[str],
+    today: datetime.date,
+) -> VersionDocument:
+    """Return the contents of release-data/<project>/<version>.json."""
+    doc: VersionDocument = {
+        "project": project,
+        "version": version_title(project, version),
+        "artifacts": artifacts,
+        "footnotes": footnotes,
+    }
+    if is_nightly(version):
+        doc["nightly_release_date"] = str(today)
+    # Same as the legacy release.py: no note for releases in lts_branches. So
+    # community master nightlies have no note, while enterprise ones do.
+    if not _in_lts_branches(version, branch):
+        doc["note"] = NON_LTS_NOTE
+    return doc
