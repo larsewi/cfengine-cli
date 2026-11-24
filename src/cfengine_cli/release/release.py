@@ -1,10 +1,18 @@
 import os
+import signal
+import sys
+from types import FrameType
+from typing import NoReturn
 
 from cfengine_cli.release.build_output import BuildOutput, read_build_output
 from cfengine_cli.release.checksums import verify_checksums
 from cfengine_cli.release.plan import PlannedFile, plan_assets, plan_packages
 from cfengine_cli.release.publish import check_disk_space, publish
 from cfengine_cli.utils import UserError
+
+
+def _exit_on_sigterm(_signum: int, _frame: FrameType | None) -> NoReturn:
+    sys.exit(1)
 
 
 def release(
@@ -21,6 +29,10 @@ def release(
 ) -> int:
     if not os.path.isdir(input_dir):
         raise UserError(f"Input directory '{input_dir}' does not exist")
+
+    # Exit cleanly on SIGTERM, e.g. an aborted Jenkins job, so temporary
+    # files are removed
+    _ = signal.signal(signal.SIGTERM, _exit_on_sigterm)
 
     _print_summary(
         project,
