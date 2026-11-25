@@ -1,7 +1,11 @@
 import copy
 import datetime
 import re
+from pathlib import Path
 from typing import Required, TypedDict
+
+from cfengine_cli.release.checksums import file_sha256
+from cfengine_cli.release.plan import PlannedFile
 
 RELEASE_DATA_URL = "https://cfengine-package-repos.s3.amazonaws.com/release-data"
 
@@ -292,3 +296,45 @@ def version_document(
     if not _in_lts_branches(version, branch):
         doc["note"] = NON_LTS_NOTE
     return doc
+
+
+def build_artifacts(
+    planned: list[PlannedFile], dry_run: bool
+) -> tuple[dict[str, list[Artifact]], list[str]]:
+    """Return the artifacts and footnotes of release-data/<project>/<version>.json.
+
+    Artifacts are grouped by section, in the order of the plan.
+    """
+    artifacts: dict[str, list[Artifact]] = {}
+    footnotes: list[str] = []
+    for file in planned:
+        artifact: Artifact = {
+            "Title": file.title,
+            "Arch": file.arch,
+            "classexpr": file.classexpr,
+            "Published": True,
+            "URL": file.url,
+            "SHA256": file_sha256(_downloaded_file(file, dry_run)),
+        }
+        if file.footnote is not None:
+            # Numbered from 1, in order of first use
+            if file.footnote not in footnotes:
+                footnotes.append(file.footnote)
+            artifact["Footnote"] = footnotes.index(file.footnote) + 1
+        if file.instructions is not None:
+            artifact["Instructions"] = file.instructions
+        if file.package is not None:
+            artifact["package"] = file.package
+        artifacts.setdefault(file.section, []).append(artifact)
+    return artifacts, footnotes
+
+
+def _downloaded_file(file: PlannedFile, dry_run: bool) -> Path:
+    """Return the file users download, i.e. the signed copy if any.
+
+    A dry run copies nothing, so it falls back to the source, as the legacy
+    release.py does. Debug releases link to the source.
+    """
+    if dry_run or file.destination is None:
+        return file.source
+    return file.destination

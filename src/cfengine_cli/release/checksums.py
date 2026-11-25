@@ -45,7 +45,10 @@ def verify_checksums(manifest: Path) -> None:
         raise UserError(f"Not listed in '{manifest}': {', '.join(unlisted)}")
 
     for name in sorted(expected):
-        with open(directory / name, "rb") as f:
-            digest = hashlib.file_digest(f, "sha256").hexdigest()
-        if digest != expected[name]:
+        if file_sha256(directory / name) != expected[name]:
             raise UserError(f"Checksum mismatch for '{directory / name}'")
+
+
+def file_sha256(path: Path) -> str:
+    with open(path, "rb") as f:
+        return hashlib.file_digest(f, "sha256").hexdigest()

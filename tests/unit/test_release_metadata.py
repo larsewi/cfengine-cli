@@ -1,5 +1,7 @@
 import copy
 import datetime
+import hashlib
+from pathlib import Path
 
 import pytest
 
@@ -7,6 +9,7 @@ from cfengine_cli.release.metadata import (
     NON_LTS_NOTE,
     Release,
     ReleasesData,
+    build_artifacts,
     is_lts,
     support_end,
     update_releases,
@@ -14,6 +17,7 @@ from cfengine_cli.release.metadata import (
     version_key,
     version_title,
 )
+from cfengine_cli.release.plan import PlannedFile
 
 # Every version in the published enterprise releases.json, highest first
 EXPECTED = [
@@ -292,3 +296,89 @@ def test_version_document_keys(
         assert doc.get("nightly_release_date") == "2027-06-01"
     if "note" in keys:
         assert doc.get("note") == NON_LTS_NOTE
+
+
+def _write(path: Path, content: bytes) -> Path:
+    _ = path.write_bytes(content)
+    return path
+
+
+def test_build_artifacts(tmp_path: Path) -> None:
+    deb = PlannedFile(
+        _write(tmp_path / "unsigned.deb", b"unsigned"),
+        _write(tmp_path / "signed.deb", b"signed"),
+        "https://example.com/signed.deb",
+        "Binary packages",
+        "Debian 12",
+        "x86_64",
+        "debian_12.x86_64",
+        "PACKAGES_x86_64_linux_debian_12",
+    )
+    tarball = PlannedFile(
+        _write(tmp_path / "source.tar.gz", b"tarball"),
+        _write(tmp_path / "copy.tar.gz", b"tarball"),
+        "https://example.com/copy.tar.gz",
+        "Additional Assets",
+        "Linux binary tarball (unsupported)",
+        "x86_64",
+        "!any",
+        None,
+        "https://docs.example.com",
+        "Not supported",
+    )
+    artifacts, footnotes = build_artifacts([deb, tarball], dry_run=False)
+    assert artifacts == {
+        "Binary packages": [
+            {
+                "Title": "Debian 12",
+                "Arch": "x86_64",
+                "classexpr": "debian_12.x86_64",
+                "Published": True,
+                "URL": "https://example.com/signed.deb",
+                # Of the signed copy
+                "SHA256": hashlib.sha256(b"signed").hexdigest(),
+                "package": "PACKAGES_x86_64_linux_debian_12",
+            }
+        ],
+        "Additional Assets": [
+            {
+                "Title": "Linux binary tarball (unsupported)",
+                "Arch": "x86_64",
+                "classexpr": "!any",
+                "Published": True,
+                "URL": "https://example.com/copy.tar.gz",
+                "SHA256": hashlib.sha256(b"tarball").hexdigest(),
+                "Footnote": 1,
+                "Instructions": "https://docs.example.com",
+            }
+        ],
+    }
+    assert footnotes == ["Not supported"]
+    # Key order as in the legacy release.py
+    assert list(artifacts["Additional Assets"][0]) == [
+        "Title",
+        "Arch",
+        "classexpr",
+        "Published",
+        "URL",
+        "SHA256",
+        "Footnote",
+        "Instructions",
+    ]
+
+
+def test_build_artifacts_dry_run(tmp_path: Path) -> None:
+    # Nothing is copied in a dry run, so the source is checksummed
+    deb = PlannedFile(
+        _write(tmp_path / "unsigned.deb", b"unsigned"),
+        tmp_path / "not-copied.deb",
+        "url",
+        "Binary packages",
+        "Debian 12",
+        "x86_64",
+        "debian_12.x86_64",
+        "PACKAGES_x86_64_linux_debian_12",
+    )
+    artifacts, _ = build_artifacts([deb], dry_run=True)
+    sha256 = artifacts["Binary packages"][0]["SHA256"]
+    assert sha256 == hashlib.sha256(b"unsigned").hexdigest()
