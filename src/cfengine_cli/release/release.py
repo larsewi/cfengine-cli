@@ -8,6 +8,7 @@ from cfengine_cli.release.build_output import BuildOutput, read_build_output
 from cfengine_cli.release.checksums import verify_checksums
 from cfengine_cli.release.plan import PlannedFile, plan_assets, plan_packages
 from cfengine_cli.release.publish import check_disk_space, publish
+from cfengine_cli.release.repo import RepoFile, plan_repo, update_repos
 from cfengine_cli.utils import UserError
 
 
@@ -52,9 +53,15 @@ def release(
 
     planned = _plan(project, version, build, input_dir, output_dir, debug)
     _print_plan(planned)
+    # Only community has repos
+    repo_files: list[RepoFile] = []
+    if update_repo and project == "community":
+        repo_files = plan_repo(planned, output_dir)
+        _print_repo_plan(repo_files)
 
     check_disk_space(planned, output_dir)
     publish(planned, sign_packages=sign, dry_run=dry_run)
+    update_repos(repo_files, output_dir, dry_run=dry_run)
     return 0
 
 
@@ -83,6 +90,14 @@ def _print_plan(planned: list[PlannedFile]) -> None:
         print(f"      from: {file.source}")
         print(f"      to:   {file.destination or 'not copied'}")
         print(f"      url:  {file.url}")
+
+
+def _print_repo_plan(repo_files: list[RepoFile]) -> None:
+    print(f"Planned {len(repo_files)} repository files:")
+    for file in repo_files:
+        print(f"  {file.destination.name}")
+        print(f"    from: {file.source}")
+        print(f"    to:   {file.destination}")
 
 
 def _verify_build_output(build: BuildOutput) -> None:
