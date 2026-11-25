@@ -1,3 +1,4 @@
+import datetime
 import os
 import signal
 import sys
@@ -8,6 +9,7 @@ from cfengine_cli.release.build_output import BuildOutput, read_build_output
 from cfengine_cli.release.checksums import verify_checksums
 from cfengine_cli.release.plan import PlannedFile, plan_assets, plan_packages
 from cfengine_cli.release.publish import check_disk_space, publish
+from cfengine_cli.release.release_data import write_release_data
 from cfengine_cli.release.repo import RepoFile, plan_repo, update_repos
 from cfengine_cli.utils import UserError
 
@@ -62,6 +64,16 @@ def release(
     check_disk_space(planned, output_dir)
     publish(planned, sign_packages=sign, dry_run=dry_run)
     update_repos(repo_files, output_dir, dry_run=dry_run)
+    write_release_data(
+        project,
+        version,
+        branch,
+        debug,
+        planned,
+        output_dir,
+        dry_run=dry_run,
+        today=datetime.date.today(),
+    )
     return 0
 
 
