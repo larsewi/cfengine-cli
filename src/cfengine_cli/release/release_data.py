@@ -1,5 +1,6 @@
 import datetime
 import json
+import shutil
 import urllib.request
 from http.client import HTTPResponse
 from pathlib import Path
@@ -14,10 +15,12 @@ from cfengine_cli.release.metadata import (
     version_document,
 )
 from cfengine_cli.release.plan import PlannedFile
+from cfengine_cli.release.utils import run
 from cfengine_cli.utils import UserError
 
 # Uploaded to release-data on S3, like the legacy release.py does
 RELEASE_DATA_DIR = "release-data"
+S3_RELEASE_DATA = "s3://cfengine-package-repos/release-data"
 
 
 def _read_releases(path: Path, project: str) -> ReleasesData:
@@ -80,3 +83,32 @@ def write_release_data(
     # The document first, so releases.json never links to a missing one
     _write_json(directory / f"{version}.json", document, dry_run=dry_run)
     _write_json(releases_path, releases, dry_run=dry_run)
+
+
+def check_upload_tools() -> None:
+    if shutil.which("aws") is None:
+        raise UserError("Upload tool not found: aws")
+
+
+def upload_release_data(output_dir: str, *, dry_run: bool) -> None:
+    """Upload release-data to S3, as the legacy release.py does."""
+    directory = Path(output_dir) / RELEASE_DATA_DIR
+    if dry_run:
+        print(f"Would have uploaded '{directory}' to '{S3_RELEASE_DATA}'")
+        return
+    output = run(
+        [
+            "aws",
+            "s3",
+            "sync",
+            str(directory),
+            S3_RELEASE_DATA,
+            "--acl",
+            "public-read",
+            # Left behind if writing was killed
+            "--exclude",
+            "*.tmp-*",
+        ]
+    )
+    print(output, end="")
+    print(f"Uploaded '{directory}' to '{S3_RELEASE_DATA}'")
