@@ -1,5 +1,8 @@
 import shutil
 import subprocess
+import tempfile
+from collections.abc import Generator
+from contextlib import contextmanager
 from pathlib import Path
 
 from cfengine_cli.utils import UserError
@@ -76,20 +79,36 @@ def check_signing_tools() -> None:
         raise UserError(f"Signing tools not found: {', '.join(missing)}")
 
 
-def copy_file(source: Path, destination: Path, signed: bool) -> None:
+@contextmanager
+def atomic_write(destination: Path, output_dir: str) -> Generator[Path, None, None]:
+    """Yield a temporary file to write, then rename it to destination.
+
+    So a file at the destination is always complete. The temporary file is in
+    a unique directory in the output dir, outside release/, repo/ and
+    release-data/. So no repo tool or upload picks it up, also not those of
+    the legacy release.py, and parallel runs never write the same file. It is
+    on the same filesystem, so the rename is atomic.
+    """
+    Path(output_dir).mkdir(parents=True, exist_ok=True)
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    # Removed with its contents on errors, also on Ctrl-C. Only SIGKILL or a
+    # crash leaves it behind.
+    with tempfile.TemporaryDirectory(dir=output_dir, prefix=".tmp-") as directory:
+        # The destination name, as sign() needs the .rpm or .deb suffix
+        temporary = Path(directory) / destination.name
+        yield temporary
+        _ = temporary.rename(destination)
+
+
+def copy_file(
+    source: Path, destination: Path, output_dir: str, *, signed: bool
+) -> None:
     """Copy source to destination, and sign the copy if signed.
 
-    Done under a temporary name, so a file at the destination is always
-    complete and signed.
+    The copy is written in a temporary directory in output_dir, see
+    atomic_write().
     """
-    destination.parent.mkdir(parents=True, exist_ok=True)
-    temporary = destination.with_name(f".tmp-{destination.name}")
-    try:
+    with atomic_write(destination, output_dir) as temporary:
         _ = shutil.copyfile(source, temporary)
         if signed:
             sign(temporary, build_time(source))
-        _ = temporary.rename(destination)
-    except BaseException:
-        # Also on Ctrl-C. Only SIGKILL or a crash leaves it behind.
-        temporary.unlink(missing_ok=True)
-        raise

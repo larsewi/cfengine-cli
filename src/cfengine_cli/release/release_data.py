@@ -15,7 +15,7 @@ from cfengine_cli.release.metadata import (
     version_document,
 )
 from cfengine_cli.release.plan import PlannedFile
-from cfengine_cli.release.utils import run
+from cfengine_cli.release.utils import atomic_write, run
 from cfengine_cli.utils import UserError
 
 # Uploaded to release-data on S3, like the legacy release.py does
@@ -41,21 +41,18 @@ def _read_releases(path: Path, project: str) -> ReleasesData:
 
 
 def _write_json(
-    path: Path, data: ReleasesData | VersionDocument, *, dry_run: bool
+    path: Path,
+    data: ReleasesData | VersionDocument,
+    output_dir: str,
+    *,
+    dry_run: bool,
 ) -> None:
     if dry_run:
         print(f"Would have written '{path}'")
         return
-    path.parent.mkdir(parents=True, exist_ok=True)
-    # Under a temporary name, so the file is never half written
-    temporary = path.with_name(f".tmp-{path.name}")
-    try:
+    with atomic_write(path, output_dir) as temporary:
         # Same format as the legacy release.py
         _ = temporary.write_text(json.dumps(data, indent=4))
-        _ = temporary.rename(path)
-    except BaseException:
-        temporary.unlink(missing_ok=True)
-        raise
     print(f"Wrote '{path}'")
 
 
@@ -81,8 +78,8 @@ def write_release_data(
     )
 
     # The document first, so releases.json never links to a missing one
-    _write_json(directory / f"{version}.json", document, dry_run=dry_run)
-    _write_json(releases_path, releases, dry_run=dry_run)
+    _write_json(directory / f"{version}.json", document, output_dir, dry_run=dry_run)
+    _write_json(releases_path, releases, output_dir, dry_run=dry_run)
 
 
 def check_upload_tools() -> None:
@@ -105,9 +102,6 @@ def upload_release_data(output_dir: str, *, dry_run: bool) -> None:
             S3_RELEASE_DATA,
             "--acl",
             "public-read",
-            # Left behind if writing was killed
-            "--exclude",
-            "*.tmp-*",
         ]
     )
     print(output, end="")

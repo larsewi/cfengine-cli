@@ -70,7 +70,7 @@ def release(
         _print_repo_plan(repo_files)
 
     check_disk_space(planned, output_dir)
-    publish(planned, sign_packages=sign, dry_run=dry_run)
+    publish(planned, output_dir, sign_packages=sign, dry_run=dry_run)
     update_repos(repo_files, output_dir, dry_run=dry_run)
     write_release_data(
         project,

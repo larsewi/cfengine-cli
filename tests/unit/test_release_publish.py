@@ -23,10 +23,12 @@ def rpm(tmp_path: Path) -> Path:
 
 def test_publish(tmp_path: Path, rpm: Path) -> None:
     destination = tmp_path / "release" / rpm.name
-    publish([_planned(rpm, destination)], sign_packages=False, dry_run=False)
+    publish(
+        [_planned(rpm, destination)], str(tmp_path), sign_packages=False, dry_run=False
+    )
     assert destination.read_text() == "built"
-    # No temporary file left
-    assert list(destination.parent.iterdir()) == [destination]
+    # No temporary dir left
+    assert list(tmp_path.glob(".tmp-*")) == []
 
 
 def test_publish_skips_existing(
@@ -35,13 +37,17 @@ def test_publish_skips_existing(
     destination = tmp_path / "release" / rpm.name
     destination.parent.mkdir()
     _ = destination.write_text("published")
-    publish([_planned(rpm, destination)], sign_packages=False, dry_run=False)
+    publish(
+        [_planned(rpm, destination)], str(tmp_path), sign_packages=False, dry_run=False
+    )
     assert destination.read_text() == "published"
     assert f"Warning: Skipped existing '{destination}'" in capsys.readouterr().out
 
 
-def test_publish_skips_debug(rpm: Path, capsys: pytest.CaptureFixture[str]) -> None:
-    publish([_planned(rpm, None)], sign_packages=False, dry_run=False)
+def test_publish_skips_debug(
+    tmp_path: Path, rpm: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    publish([_planned(rpm, None)], str(tmp_path), sign_packages=False, dry_run=False)
     assert capsys.readouterr().out == ""
 
 
@@ -49,7 +55,9 @@ def test_publish_dry_run(
     tmp_path: Path, rpm: Path, capsys: pytest.CaptureFixture[str]
 ) -> None:
     destination = tmp_path / "release" / rpm.name
-    publish([_planned(rpm, destination)], sign_packages=False, dry_run=True)
+    publish(
+        [_planned(rpm, destination)], str(tmp_path), sign_packages=False, dry_run=True
+    )
     assert not destination.parent.exists()
     assert capsys.readouterr().out == (
         f"Would have copied '{rpm}' to '{destination}'\n"
@@ -62,4 +70,9 @@ def test_publish_missing_signing_tools(
     monkeypatch.setenv("PATH", str(tmp_path))
     destination = tmp_path / "release" / rpm.name
     with pytest.raises(UserError, match="Signing tools not found"):
-        publish([_planned(rpm, destination)], sign_packages=True, dry_run=True)
+        publish(
+            [_planned(rpm, destination)],
+            str(tmp_path),
+            sign_packages=True,
+            dry_run=True,
+        )

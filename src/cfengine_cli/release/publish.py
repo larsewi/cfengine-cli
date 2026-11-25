@@ -41,7 +41,9 @@ def check_disk_space(planned: list[PlannedFile], output_dir: str) -> None:
         )
 
 
-def publish(planned: list[PlannedFile], *, sign_packages: bool, dry_run: bool) -> None:
+def publish(
+    planned: list[PlannedFile], output_dir: str, *, sign_packages: bool, dry_run: bool
+) -> None:
     """Copy the planned files to their destinations, signing .rpm and .deb.
 
     Existing destinations are skipped, so a failed run can be resumed. Files
@@ -69,7 +71,7 @@ def publish(planned: list[PlannedFile], *, sign_packages: bool, dry_run: bool) -
                 print(f"Would have signed '{destination}'")
             continue
 
-        copy_file(file.source, destination, signed)
+        copy_file(file.source, destination, output_dir, signed=signed)
         print(
             f"Copied '{file.source}' to '{destination}'{' and signed' if signed else ''}"
         )

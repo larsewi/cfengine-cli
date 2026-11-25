@@ -166,7 +166,7 @@ def update_repos(files: list[RepoFile], output_dir: str, *, dry_run: bool) -> No
         if dry_run:
             print(f"Would have copied '{file.source}' to '{file.destination}'")
             continue
-        copy_file(file.source, file.destination, signed=False)
+        copy_file(file.source, file.destination, output_dir, signed=False)
         print(f"Copied '{file.source}' to '{file.destination}'")
 
     repo = Path(output_dir) / REPO_DIR

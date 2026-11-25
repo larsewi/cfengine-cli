@@ -2,7 +2,7 @@ from pathlib import Path
 
 import pytest
 
-from cfengine_cli.release.utils import build_time, run
+from cfengine_cli.release.utils import atomic_write, build_time, run
 from cfengine_cli.utils import UserError
 
 
@@ -20,3 +20,13 @@ def test_run() -> None:
 def test_run_fails_on_exit_status() -> None:
     with pytest.raises(UserError, match="Command failed: sh -c exit 1"):
         _ = run(["sh", "-c", "exit 1"])
+
+
+def test_atomic_write_error(tmp_path: Path) -> None:
+    destination = tmp_path / "release" / "cfengine-nova_3.30.0-1_amd64.deb"
+    with pytest.raises(RuntimeError):
+        with atomic_write(destination, str(tmp_path)) as temporary:
+            _ = temporary.write_text("half written")
+            raise RuntimeError
+    assert not destination.exists()
+    assert list(tmp_path.glob(".tmp-*")) == []
