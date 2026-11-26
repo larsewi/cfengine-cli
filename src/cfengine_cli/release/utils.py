@@ -58,6 +58,14 @@ def _rpm_build_time(path: Path) -> int:
     return int(run(["rpm", "-qp", "--nosignature", "--qf", "%{BUILDTIME}", str(path)]))
 
 
+def is_signed_rpm(path: Path) -> bool:
+    """Return True if the rpm has a header signature, as rpmsign adds."""
+    # --nosignature as in _rpm_build_time(). Only checks that a signature is
+    # there, verifying it would need the key in an rpm database.
+    query = ["rpm", "-qp", "--nosignature", "--qf", "%{RSAHEADER:pgpsig}"]
+    return run([*query, str(path)]).strip() != "(none)"
+
+
 def build_time(path: Path) -> int:
     """Return the package's SOURCE_DATE_EPOCH."""
     if path.name.endswith(".rpm"):

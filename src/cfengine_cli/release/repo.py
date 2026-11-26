@@ -7,7 +7,12 @@ from pathlib import Path
 from cfengine_cli.release.build_output import read_build_output
 from cfengine_cli.release.checksums import verify_build_output
 from cfengine_cli.release.plan import PlannedFile, plan_release
-from cfengine_cli.release.utils import copy_file, exit_on_sigterm, run
+from cfengine_cli.release.utils import (
+    copy_file,
+    exit_on_sigterm,
+    is_signed_rpm,
+    run,
+)
 from cfengine_cli.utils import UserError
 
 # The community repos, shared by all branches. The legacy release.py, still
@@ -27,7 +32,7 @@ YUM_LABELS = {
 }
 # Signs the APT Release file
 RELEASE_KEY = "contact@northern.tech"
-REPO_TOOLS = ("apt-ftparchive", "createrepo_c", "gpg")
+REPO_TOOLS = ("apt-ftparchive", "createrepo_c", "gpg", "rpm")
 
 # The settings of apt-ftparchive.conf in infra, with paths from the repo dir.
 # i386 is kept, as the pool still has old i386 packages.
@@ -193,6 +198,14 @@ def update_repos(files: list[RepoFile], output_dir: str, *, dry_run: bool) -> No
             f"Not found, run cfengine dev release first: {', '.join(missing)}"
         )
     _check_repo_tools()
+    # E.g. released with --no-sign. yum clients with gpgcheck would fail.
+    unsigned = [
+        str(file.source)
+        for file in files
+        if file.source.name.endswith(".rpm") and not is_signed_rpm(file.source)
+    ]
+    if unsigned:
+        raise UserError(f"Not signed, cannot add to the repo: {', '.join(unsigned)}")
 
     for file in files:
         if file.destination.exists():
