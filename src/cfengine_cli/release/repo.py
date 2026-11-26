@@ -12,6 +12,7 @@ from cfengine_cli.release.utils import (
     copy_file,
     exit_on_sigterm,
     is_signed_rpm,
+    output_lock,
     run,
 )
 from cfengine_cli.utils import UserError
@@ -173,7 +174,8 @@ def update_repo(version: str, input_dir: str, output_dir: str, *, dry_run: bool)
     planned = plan_release("community", version, build, input_dir, output_dir, False)
     files = plan_repo(planned, output_dir)
     _print_repo_plan(files)
-    update_repos(files, output_dir, dry_run=dry_run)
+    with output_lock(output_dir, dry_run=dry_run):
+        update_repos(files, output_dir, dry_run=dry_run)
     return 0
 
 

@@ -7,7 +7,11 @@ from cfengine_cli.release.metadata import is_nightly, release_branch
 from cfengine_cli.release.plan import PlannedFile, plan_release
 from cfengine_cli.release.publish import publish
 from cfengine_cli.release.release_data import write_release_data
-from cfengine_cli.release.utils import check_disk_space, exit_on_sigterm
+from cfengine_cli.release.utils import (
+    check_disk_space,
+    exit_on_sigterm,
+    output_lock,
+)
 from cfengine_cli.utils import UserError
 
 
@@ -44,18 +48,19 @@ def release(
     planned = plan_release(project, version, build, input_dir, output_dir, debug)
     _print_plan(planned)
 
-    check_disk_space([(f.source, f.destination) for f in planned], output_dir)
-    publish(planned, output_dir, sign_packages=sign, dry_run=dry_run)
-    write_release_data(
-        project,
-        version,
-        branch,
-        debug,
-        planned,
-        output_dir,
-        dry_run=dry_run,
-        today=datetime.date.today(),
-    )
+    with output_lock(output_dir, dry_run=dry_run):
+        check_disk_space([(f.source, f.destination) for f in planned], output_dir)
+        publish(planned, output_dir, sign_packages=sign, dry_run=dry_run)
+        write_release_data(
+            project,
+            version,
+            branch,
+            debug,
+            planned,
+            output_dir,
+            dry_run=dry_run,
+            today=datetime.date.today(),
+        )
     return 0
 
 

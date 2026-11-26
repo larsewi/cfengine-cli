@@ -1,3 +1,4 @@
+import fcntl
 import shutil
 import signal
 import subprocess
@@ -12,6 +13,8 @@ from typing import NoReturn
 from cfengine_cli.utils import UserError
 
 SIGNED_SUFFIXES = (".rpm", ".deb")
+# In the output dir. Also taken by the legacy release.py in infra.
+LOCK_FILE = ".lock"
 # Free space to keep on top of the files to copy, as in the legacy release.py.
 # Also covers the repo metadata that update-repo regenerates.
 DISK_SPACE_MARGIN = 1024**3
@@ -126,6 +129,27 @@ def atomic_write(destination: Path, output_dir: str) -> Generator[Path, None, No
         temporary = Path(directory) / destination.name
         yield temporary
         _ = temporary.rename(destination)
+
+
+@contextmanager
+def output_lock(output_dir: str, *, dry_run: bool) -> Generator[None, None, None]:
+    """Hold an exclusive lock on the output dir while writing to it.
+
+    Runs write the same releases.json and repos, so they must not overlap.
+    The legacy release.py takes the same lock. The kernel releases it when
+    the process ends, also on SIGKILL. A dry run only reads, so takes none.
+    """
+    if dry_run:
+        yield
+        return
+    Path(output_dir).mkdir(parents=True, exist_ok=True)
+    with open(Path(output_dir) / LOCK_FILE, "w") as f:
+        try:
+            fcntl.flock(f, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except BlockingIOError:
+            print("Waiting for another release to finish ...", flush=True)
+            fcntl.flock(f, fcntl.LOCK_EX)
+        yield
 
 
 def _existing_parent(path: Path) -> Path:
