@@ -24,7 +24,10 @@ RELEASE_DATA_DIR = "release-data"
 def _read_releases(path: Path, project: str) -> ReleasesData:
     """Read releases.json, or fetch the published one if there is none yet."""
     if path.exists():
-        return cast(ReleasesData, json.loads(path.read_text()))
+        try:
+            return cast(ReleasesData, json.loads(path.read_text()))
+        except json.JSONDecodeError as e:
+            raise UserError(f"Invalid JSON in '{path}': {e}") from e
     url = release_data_url(project, "releases")
     print(f"No '{path}', fetching '{url}'")
     try:
@@ -36,6 +39,8 @@ def _read_releases(path: Path, project: str) -> ReleasesData:
         # Unlike the legacy release.py, do not start from an empty list. It
         # would replace the published releases.json once uploaded.
         raise UserError(f"Could not fetch '{url}': {e}") from e
+    except json.JSONDecodeError as e:
+        raise UserError(f"Invalid JSON from '{url}': {e}") from e
 
 
 def _write_json(

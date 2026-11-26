@@ -3,9 +3,12 @@ import json
 from pathlib import Path
 from typing import cast
 
+import pytest
+
 from cfengine_cli.release.metadata import ReleasesData, VersionDocument
 from cfengine_cli.release.plan import PlannedFile
 from cfengine_cli.release.release_data import write_release_data
+from cfengine_cli.utils import UserError
 
 TODAY = datetime.date(2027, 6, 1)
 
@@ -68,3 +71,19 @@ def test_write_release_data_dry_run(tmp_path: Path) -> None:
     assert (directory / "releases.json").read_text() == (
         '{"lts_branches": [], "releases": []}'
     )
+
+
+def test_write_release_data_invalid_releases(tmp_path: Path) -> None:
+    planned, directory = _setup(tmp_path)
+    _ = (directory / "releases.json").write_text('{"releases": [')
+    with pytest.raises(UserError, match="Invalid JSON in"):
+        write_release_data(
+            "community",
+            "3.30.0",
+            "3.30.x",
+            False,
+            planned,
+            str(tmp_path / "out"),
+            dry_run=True,
+            today=TODAY,
+        )
