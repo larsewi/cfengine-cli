@@ -1,8 +1,8 @@
 import shutil
+import subprocess
 from pathlib import Path
 
 from cfengine_cli.release.release_data import RELEASE_DATA_DIR
-from cfengine_cli.release.utils import run
 from cfengine_cli.utils import UserError
 
 # As in sync-packages-to-s3.sh in infra
@@ -60,6 +60,10 @@ def publish_to_s3(
         if dry_run:
             # Lists what would be uploaded, the files exist by now
             command.append("--dryrun")
-        print(run(command), end="")
+        # Not captured, so the progress of large uploads shows as it runs
+        try:
+            _ = subprocess.run(command, check=True)
+        except subprocess.CalledProcessError as e:
+            raise UserError(f"Command failed: {' '.join(command)}") from e
         print(f"{'Checked' if dry_run else 'Uploaded'} '{directory}' to '{url}'")
     return 0
