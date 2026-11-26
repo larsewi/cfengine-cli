@@ -91,10 +91,8 @@ def dispatch_dev_subcommand(subcommand, args) -> int:
         return release(
             project=args.project,
             version=args.version,
-            branch=args.branch,
             input_dir=args.input,
             output_dir=args.output,
-            debug=args.debug,
             sign=not args.no_sign,
             dry_run=args.dry_run,
         )

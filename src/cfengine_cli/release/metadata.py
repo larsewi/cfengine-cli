@@ -78,6 +78,19 @@ def is_nightly(version: str) -> bool:
     return version == "master" or version.endswith(".x")
 
 
+def release_branch(project: str, version: str) -> str:
+    """Return the branch of a version in releases.json.
+
+    E.g. 3.30.x for 3.30.0. Nightlies use their version, except community
+    nightlies, e.g. nightly-master. Same as the legacy release.py is called.
+    """
+    if not is_nightly(version):
+        return re.sub(r"\.\d+$", ".x", version)
+    if project == "community":
+        return f"nightly-{version}"
+    return version
+
+
 def release_data_url(project: str, version: str) -> str:
     """Return the URL of release-data/<project>/<version>.json."""
     return f"{RELEASE_DATA_URL}/{project}/{version}.json"

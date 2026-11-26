@@ -11,6 +11,7 @@ from cfengine_cli.release.metadata import (
     ReleasesData,
     build_artifacts,
     is_lts,
+    release_branch,
     support_end,
     update_releases,
     version_document,
@@ -296,6 +297,22 @@ def test_version_document_keys(
         assert doc.get("nightly_release_date") == "2027-06-01"
     if "note" in keys:
         assert doc.get("note") == NON_LTS_NOTE
+
+
+@pytest.mark.parametrize(
+    "project, version, branch",
+    [
+        ("community", "3.30.0", "3.30.x"),
+        ("enterprise", "3.30.0", "3.30.x"),
+        # Nightlies, as in the published releases.json
+        ("community", "3.27.x", "nightly-3.27.x"),
+        ("enterprise", "3.27.x", "3.27.x"),
+        ("community", "master", "nightly-master"),
+        ("enterprise", "master", "master"),
+    ],
+)
+def test_release_branch(project: str, version: str, branch: str) -> None:
+    assert release_branch(project, version) == branch
 
 
 def _write(path: Path, content: bytes) -> Path:

@@ -3,6 +3,7 @@ import os
 
 from cfengine_cli.release.build_output import read_build_output
 from cfengine_cli.release.checksums import verify_build_output
+from cfengine_cli.release.metadata import is_nightly, release_branch
 from cfengine_cli.release.plan import PlannedFile, plan_release
 from cfengine_cli.release.publish import check_disk_space, publish
 from cfengine_cli.release.release_data import write_release_data
@@ -13,13 +14,14 @@ from cfengine_cli.utils import UserError
 def release(
     project: str,
     version: str,
-    branch: str,
     input_dir: str,
     output_dir: str,
-    debug: bool,
     sign: bool,
     dry_run: bool,
 ) -> int:
+    branch = release_branch(project, version)
+    # Nightlies are debug releases, hidden from the downloads page
+    debug = is_nightly(version)
     if not os.path.isdir(input_dir):
         raise UserError(f"Input directory '{input_dir}' does not exist")
 

@@ -1,4 +1,21 @@
 import argparse
+import re
+
+
+def release_version(value: str) -> str:
+    """argparse type for a release or nightly version."""
+    if not re.fullmatch(r"\d+\.\d+\.(\d+|x)|master", value):
+        raise argparse.ArgumentTypeError(
+            f"'{value}' is not X.Y.Z, or X.Y.x or master for nightlies"
+        )
+    return value
+
+
+def stable_version(value: str) -> str:
+    """argparse type for a release version, not a nightly."""
+    if not re.fullmatch(r"\d+\.\d+\.\d+", value):
+        raise argparse.ArgumentTypeError(f"'{value}' is not X.Y.Z")
+    return value
 
 
 def add_release_args(sp: argparse.ArgumentParser) -> None:
@@ -11,17 +28,9 @@ def add_release_args(sp: argparse.ArgumentParser) -> None:
     _ = sp.add_argument(
         "--version",
         required=True,
-        help="Version to release, e.g. 3.30.0, or 3.30.x / master for nightlies",
-    )
-    _ = sp.add_argument(
-        "--branch",
-        required=True,
-        help="Branch the release belongs to, e.g. 3.30.x or nightly-master",
-    )
-    _ = sp.add_argument(
-        "--debug",
-        action="store_true",
-        help="Mark as a debug release, not shown on the downloads page",
+        type=release_version,
+        help="Version to release, e.g. 3.30.0. Or 3.30.x or master for a nightly, "
+        + "which is hidden from the downloads page",
     )
     _ = sp.add_argument(
         "--input",
@@ -67,6 +76,7 @@ def add_update_repo_args(sp: argparse.ArgumentParser) -> None:
     _ = sp.add_argument(
         "--version",
         required=True,
+        type=stable_version,
         help="Community version to add, e.g. 3.30.0",
     )
     _ = sp.add_argument(
