@@ -31,13 +31,21 @@ def add_release_args(sp: argparse.ArgumentParser) -> None:
     _ = sp.add_argument(
         "--output",
         required=True,
-        help="Root directory to write release/, repo/ and release-data/ to",
+        help="Root directory to write release/ and release-data/ to",
     )
     _ = sp.add_argument(
         "--no-sign", action="store_true", help="Don't sign the packages"
     )
     _ = sp.add_argument(
-        "--no-upload", action="store_true", help="Don't upload the metadata to S3"
+        "--dry-run", action="store_true", help="Only print what would be done"
+    )
+
+
+def add_publish_args(sp: argparse.ArgumentParser) -> None:
+    _ = sp.add_argument(
+        "--output",
+        required=True,
+        help="Root directory with release-data/, as given to cfengine dev release",
     )
     _ = sp.add_argument(
         "--dry-run", action="store_true", help="Only print what would be done"

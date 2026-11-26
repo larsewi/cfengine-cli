@@ -5,11 +5,7 @@ from cfengine_cli.release.build_output import read_build_output
 from cfengine_cli.release.checksums import verify_build_output
 from cfengine_cli.release.plan import PlannedFile, plan_release
 from cfengine_cli.release.publish import check_disk_space, publish
-from cfengine_cli.release.release_data import (
-    check_upload_tools,
-    upload_release_data,
-    write_release_data,
-)
+from cfengine_cli.release.release_data import write_release_data
 from cfengine_cli.release.utils import exit_on_sigterm
 from cfengine_cli.utils import UserError
 
@@ -22,7 +18,6 @@ def release(
     output_dir: str,
     debug: bool,
     sign: bool,
-    upload: bool,
     dry_run: bool,
 ) -> int:
     if not os.path.isdir(input_dir):
@@ -38,13 +33,8 @@ def release(
         output_dir,
         debug,
         sign,
-        upload,
         dry_run,
     )
-
-    # Before any work, so a release does not fail at the very end
-    if upload:
-        check_upload_tools()
 
     build = read_build_output(input_dir)
     verify_build_output(build)
@@ -64,8 +54,6 @@ def release(
         dry_run=dry_run,
         today=datetime.date.today(),
     )
-    if upload:
-        upload_release_data(output_dir, dry_run=dry_run)
     return 0
 
 
@@ -90,7 +78,6 @@ def _print_summary(
     output_dir: str,
     debug: bool,
     sign: bool,
-    upload: bool,
     dry_run: bool,
 ) -> None:
     print(f"Releasing {project} {version} (branch {branch})")
@@ -98,10 +85,4 @@ def _print_summary(
     print(f"  output: {output_dir}")
     print(f"  debug:  {debug}")
     print(f"  dry run: {dry_run}")
-
-    steps = [
-        ("sign packages", sign),
-        ("upload metadata", upload),
-    ]
-    for name, enabled in steps:
-        print(f"  {name}: {'yes' if enabled else 'skipped'}")
+    print(f"  sign packages: {'yes' if sign else 'skipped'}")

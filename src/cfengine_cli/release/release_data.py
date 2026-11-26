@@ -87,12 +87,15 @@ def check_upload_tools() -> None:
         raise UserError("Upload tool not found: aws")
 
 
-def upload_release_data(output_dir: str, *, dry_run: bool) -> None:
+def publish_release_data(output_dir: str, *, dry_run: bool) -> int:
     """Upload release-data to S3, as the legacy release.py does."""
     directory = Path(output_dir) / RELEASE_DATA_DIR
+    if not directory.is_dir():
+        raise UserError(f"Not found, run cfengine dev release first: {directory}")
+    check_upload_tools()
     if dry_run:
         print(f"Would have uploaded '{directory}' to '{S3_RELEASE_DATA}'")
-        return
+        return 0
     output = run(
         [
             "aws",
@@ -106,3 +109,4 @@ def upload_release_data(output_dir: str, *, dry_run: bool) -> None:
     )
     print(output, end="")
     print(f"Uploaded '{directory}' to '{S3_RELEASE_DATA}'")
+    return 0
