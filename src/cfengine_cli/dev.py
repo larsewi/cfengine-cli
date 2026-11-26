@@ -11,6 +11,7 @@ from cfengine_cli.deptool import (
 from cfengine_cli import docs
 from cfengine_cli.syntax_tree import syntax_tree
 from cfengine_cli.release.release import release
+from cfengine_cli.release.repo import update_repo
 
 
 def generate_release_information_command(
@@ -94,8 +95,14 @@ def dispatch_dev_subcommand(subcommand, args) -> int:
             output_dir=args.output,
             debug=args.debug,
             sign=not args.no_sign,
-            update_repo=not args.no_repo,
             upload=not args.no_upload,
+            dry_run=args.dry_run,
+        )
+    if subcommand == "update-repo":
+        return update_repo(
+            version=args.version,
+            input_dir=args.input,
+            output_dir=args.output,
             dry_run=args.dry_run,
         )
 

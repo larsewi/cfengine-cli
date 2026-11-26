@@ -107,6 +107,20 @@ def _docs_url(version: str, page: str) -> str:
     return f"{DOCS_URL}/{docs_version}/{page}"
 
 
+def plan_release(
+    project: str,
+    version: str,
+    build: BuildOutput,
+    input_dir: str,
+    output_dir: str,
+    debug: bool,
+) -> list[PlannedFile]:
+    """Plan every file to publish: platform packages, then additional assets."""
+    return plan_packages(
+        project, version, build, input_dir, output_dir, debug
+    ) + plan_assets(project, version, build, input_dir, output_dir, debug)
+
+
 def plan_packages(
     project: str,
     version: str,

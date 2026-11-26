@@ -1,15 +1,32 @@
 import shutil
+import signal
 import subprocess
+import sys
 import tempfile
 from collections.abc import Generator
 from contextlib import contextmanager
 from pathlib import Path
+from types import FrameType
+from typing import NoReturn
 
 from cfengine_cli.utils import UserError
 
 SIGNED_SUFFIXES = (".rpm", ".deb")
 SIGNING_TOOLS = ("rpm", "rpmsign", "debsigs")
 AR_MAGIC = b"!<arch>\n"
+
+
+def exit_on_sigterm() -> None:
+    """Exit cleanly on SIGTERM, e.g. from an aborted Jenkins job.
+
+    Python's default is to die at once, which leaves temporary files behind.
+    sys.exit() raises SystemExit, so they are removed on the way out.
+    """
+
+    def handler(_signum: int, _frame: FrameType | None) -> NoReturn:
+        sys.exit(1)
+
+    _ = signal.signal(signal.SIGTERM, handler)
 
 
 def run(command: list[str]) -> str:

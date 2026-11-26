@@ -1,10 +1,13 @@
+import os
 import shutil
 import tempfile
 from dataclasses import dataclass
 from pathlib import Path
 
-from cfengine_cli.release.plan import PlannedFile
-from cfengine_cli.release.utils import copy_file, run
+from cfengine_cli.release.build_output import read_build_output
+from cfengine_cli.release.checksums import verify_build_output
+from cfengine_cli.release.plan import PlannedFile, plan_release
+from cfengine_cli.release.utils import copy_file, exit_on_sigterm, run
 from cfengine_cli.utils import UserError
 
 # The community repos, shared by all branches. The legacy release.py, still
@@ -148,6 +151,34 @@ def _update_yum(directory: Path) -> None:
     )
 
 
+def update_repo(version: str, input_dir: str, output_dir: str, *, dry_run: bool) -> int:
+    """Add a community release to the repos, after cfengine dev release."""
+    if not os.path.isdir(input_dir):
+        raise UserError(f"Input directory '{input_dir}' does not exist")
+    exit_on_sigterm()
+
+    print(f"Updating the community repositories with {version}")
+    print(f"  input:  {input_dir}")
+    print(f"  output: {output_dir}")
+    print(f"  dry run: {dry_run}")
+
+    build = read_build_output(input_dir)
+    verify_build_output(build)
+    planned = plan_release("community", version, build, input_dir, output_dir, False)
+    files = plan_repo(planned, output_dir)
+    _print_repo_plan(files)
+    update_repos(files, output_dir, dry_run=dry_run)
+    return 0
+
+
+def _print_repo_plan(files: list[RepoFile]) -> None:
+    print(f"Planned {len(files)} repository files:")
+    for file in files:
+        print(f"  {file.destination.name}")
+        print(f"    from: {file.source}")
+        print(f"    to:   {file.destination}")
+
+
 def update_repos(files: list[RepoFile], output_dir: str, *, dry_run: bool) -> None:
     """Add the planned packages to the repos, and regenerate their metadata.
 
@@ -156,6 +187,11 @@ def update_repos(files: list[RepoFile], output_dir: str, *, dry_run: bool) -> No
     """
     if not files:
         return
+    missing = [str(file.source) for file in files if not file.source.exists()]
+    if missing:
+        raise UserError(
+            f"Not found, run cfengine dev release first: {', '.join(missing)}"
+        )
     _check_repo_tools()
 
     for file in files:

@@ -54,6 +54,14 @@ def test_update_repos_missing_tools(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     monkeypatch.setenv("PATH", str(tmp_path))
+    _ = (tmp_path / "a.deb").write_text("deb")
     files = [RepoFile(tmp_path / "a.deb", tmp_path / "repo" / "a.deb")]
     with pytest.raises(UserError, match="Repository tools not found"):
+        update_repos(files, str(tmp_path), dry_run=True)
+
+
+def test_update_repos_not_released(tmp_path: Path) -> None:
+    rpm = RELEASE / "cfengine-community-3.30.0-1.el9.x86_64.rpm"
+    files = [RepoFile(rpm, tmp_path / "repo" / rpm.name)]
+    with pytest.raises(UserError, match="run cfengine dev release first"):
         update_repos(files, str(tmp_path), dry_run=True)

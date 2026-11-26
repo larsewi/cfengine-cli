@@ -2,6 +2,7 @@ import hashlib
 import re
 from pathlib import Path
 
+from cfengine_cli.release.build_output import BuildOutput
 from cfengine_cli.utils import UserError
 
 # sha256sum output: hash, two spaces, file name
@@ -47,6 +48,16 @@ def verify_checksums(manifest: Path) -> None:
     for name in sorted(expected):
         if file_sha256(directory / name) != expected[name]:
             raise UserError(f"Checksum mismatch for '{directory / name}'")
+
+
+def verify_build_output(build: BuildOutput) -> None:
+    """Verify the checksums of every directory in the build output."""
+    output_dirs = [*build.labels.values(), build.tarballs]
+    if build.vagrant is not None:
+        output_dirs.append(build.vagrant)
+    for output_dir in output_dirs:
+        verify_checksums(output_dir.sha256sums)
+    print("Checksums OK")
 
 
 def file_sha256(path: Path) -> str:

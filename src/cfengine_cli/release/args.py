@@ -37,12 +37,28 @@ def add_release_args(sp: argparse.ArgumentParser) -> None:
         "--no-sign", action="store_true", help="Don't sign the packages"
     )
     _ = sp.add_argument(
-        "--no-repo",
-        action="store_true",
-        help="Don't update the community APT and YUM repositories",
+        "--no-upload", action="store_true", help="Don't upload the metadata to S3"
     )
     _ = sp.add_argument(
-        "--no-upload", action="store_true", help="Don't upload the metadata to S3"
+        "--dry-run", action="store_true", help="Only print what would be done"
+    )
+
+
+def add_update_repo_args(sp: argparse.ArgumentParser) -> None:
+    _ = sp.add_argument(
+        "--version",
+        required=True,
+        help="Community version to add, e.g. 3.30.0",
+    )
+    _ = sp.add_argument(
+        "--input",
+        required=True,
+        help="Directory with the build output, as given to cfengine dev release",
+    )
+    _ = sp.add_argument(
+        "--output",
+        required=True,
+        help="Root directory with release/ and repo/, as given to cfengine dev release",
     )
     _ = sp.add_argument(
         "--dry-run", action="store_true", help="Only print what would be done"
