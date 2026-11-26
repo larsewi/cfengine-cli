@@ -8,6 +8,7 @@ from cfengine_cli.release.build_output import read_build_output
 from cfengine_cli.release.checksums import verify_build_output
 from cfengine_cli.release.plan import PlannedFile, plan_release
 from cfengine_cli.release.utils import (
+    check_disk_space,
     copy_file,
     exit_on_sigterm,
     is_signed_rpm,
@@ -206,6 +207,7 @@ def update_repos(files: list[RepoFile], output_dir: str, *, dry_run: bool) -> No
     ]
     if unsigned:
         raise UserError(f"Not signed, cannot add to the repo: {', '.join(unsigned)}")
+    check_disk_space([(f.source, f.destination) for f in files], output_dir)
 
     for file in files:
         if file.destination.exists():

@@ -1,12 +1,5 @@
-import shutil
-from pathlib import Path
-
 from cfengine_cli.release.plan import PlannedFile
 from cfengine_cli.release.utils import SIGNED_SUFFIXES, check_signing_tools, copy_file
-from cfengine_cli.utils import UserError
-
-# Free space to keep on top of the files to copy, as in the legacy release.py
-DISK_SPACE_MARGIN = 1024**3
 
 
 def _to_copy(planned: list[PlannedFile]) -> list[PlannedFile]:
@@ -16,29 +9,6 @@ def _to_copy(planned: list[PlannedFile]) -> list[PlannedFile]:
         for file in planned
         if file.destination is not None and not file.destination.exists()
     ]
-
-
-def _existing_parent(path: Path) -> Path:
-    while not path.exists():
-        path = path.parent
-    return path
-
-
-def check_disk_space(planned: list[PlannedFile], output_dir: str) -> None:
-    """Fail unless output_dir fits the files to copy, plus a margin."""
-    sources = [file.source for file in _to_copy(planned)]
-    if not sources:
-        return
-    needed = sum(source.stat().st_size for source in sources) + DISK_SPACE_MARGIN
-    # The output dir may not exist yet, e.g. locally
-    free = shutil.disk_usage(_existing_parent(Path(output_dir))).free
-    if free < needed:
-        raise UserError(
-            (
-                f"Not enough disk space in '{output_dir}': "
-                f"need ~{needed // 1024**2} MiB, only {free // 1024**2} MiB free"
-            )
-        )
 
 
 def publish(

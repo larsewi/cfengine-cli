@@ -12,6 +12,9 @@ from typing import NoReturn
 from cfengine_cli.utils import UserError
 
 SIGNED_SUFFIXES = (".rpm", ".deb")
+# Free space to keep on top of the files to copy, as in the legacy release.py.
+# Also covers the repo metadata that update-repo regenerates.
+DISK_SPACE_MARGIN = 1024**3
 SIGNING_TOOLS = ("rpm", "rpmsign", "debsigs")
 AR_MAGIC = b"!<arch>\n"
 
@@ -123,6 +126,35 @@ def atomic_write(destination: Path, output_dir: str) -> Generator[Path, None, No
         temporary = Path(directory) / destination.name
         yield temporary
         _ = temporary.rename(destination)
+
+
+def _existing_parent(path: Path) -> Path:
+    while not path.exists():
+        path = path.parent
+    return path
+
+
+def check_disk_space(copies: list[tuple[Path, Path | None]], output_dir: str) -> None:
+    """Fail unless output_dir fits the copies, plus a margin.
+
+    copies are (source, destination) pairs. Destinations that are None or
+    exist already are not copied, so they are not counted.
+    """
+    sizes = [
+        source.stat().st_size
+        for source, destination in copies
+        if destination is not None and not destination.exists()
+    ]
+    if not sizes:
+        return
+    needed = sum(sizes) + DISK_SPACE_MARGIN
+    # The output dir may not exist yet, e.g. locally
+    free = shutil.disk_usage(_existing_parent(Path(output_dir))).free
+    if free < needed:
+        raise UserError(
+            f"Not enough disk space in '{output_dir}': "
+            + f"need ~{needed // 1024**2} MiB, only {free // 1024**2} MiB free"
+        )
 
 
 def copy_file(
