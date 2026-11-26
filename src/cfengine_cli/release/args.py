@@ -45,10 +45,21 @@ def add_publish_args(sp: argparse.ArgumentParser) -> None:
     _ = sp.add_argument(
         "--output",
         required=True,
-        help="Root directory with release-data/, as given to cfengine dev release",
+        help="Root directory with release/, repo/ and release-data/",
     )
     _ = sp.add_argument(
-        "--dry-run", action="store_true", help="Only print what would be done"
+        "--bucket",
+        required=True,
+        choices=["test", "prod"],
+        help="test: only the repos, to try them. prod: everything, release data last",
+    )
+    _ = sp.add_argument(
+        "--release-data-only",
+        action="store_true",
+        help="Only upload the release data, e.g. for nightlies. Needs --bucket prod",
+    )
+    _ = sp.add_argument(
+        "--dry-run", action="store_true", help="Only list what would be uploaded"
     )
 
 

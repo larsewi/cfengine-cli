@@ -230,7 +230,7 @@ Core and Masterfiles only reflect themselves""",
 
     parser = dev_subparsers.add_parser(
         "publish",
-        help="Upload the release data to S3",
+        help="Upload the release files, repositories and release data to S3",
     )
     add_publish_args(parser)
 

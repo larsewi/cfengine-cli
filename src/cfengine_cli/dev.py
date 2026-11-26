@@ -11,7 +11,7 @@ from cfengine_cli.deptool import (
 from cfengine_cli import docs
 from cfengine_cli.syntax_tree import syntax_tree
 from cfengine_cli.release.release import release
-from cfengine_cli.release.release_data import publish_release_data
+from cfengine_cli.release.s3 import publish_to_s3
 from cfengine_cli.release.repo import update_repo
 
 
@@ -99,7 +99,12 @@ def dispatch_dev_subcommand(subcommand, args) -> int:
             dry_run=args.dry_run,
         )
     if subcommand == "publish":
-        return publish_release_data(output_dir=args.output, dry_run=args.dry_run)
+        return publish_to_s3(
+            output_dir=args.output,
+            bucket=args.bucket,
+            release_data_only=args.release_data_only,
+            dry_run=args.dry_run,
+        )
     if subcommand == "update-repo":
         return update_repo(
             version=args.version,

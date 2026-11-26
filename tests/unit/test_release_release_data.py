@@ -3,16 +3,9 @@ import json
 from pathlib import Path
 from typing import cast
 
-import pytest
-
 from cfengine_cli.release.metadata import ReleasesData, VersionDocument
 from cfengine_cli.release.plan import PlannedFile
-from cfengine_cli.release.release_data import (
-    check_upload_tools,
-    publish_release_data,
-    write_release_data,
-)
-from cfengine_cli.utils import UserError
+from cfengine_cli.release.release_data import write_release_data
 
 TODAY = datetime.date(2027, 6, 1)
 
@@ -75,16 +68,3 @@ def test_write_release_data_dry_run(tmp_path: Path) -> None:
     assert (directory / "releases.json").read_text() == (
         '{"lts_branches": [], "releases": []}'
     )
-
-
-def test_check_upload_tools_missing(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    monkeypatch.setenv("PATH", str(tmp_path))
-    with pytest.raises(UserError, match="Upload tool not found: aws"):
-        check_upload_tools()
-
-
-def test_publish_release_data_not_released(tmp_path: Path) -> None:
-    with pytest.raises(UserError, match="run cfengine dev release first"):
-        _ = publish_release_data(str(tmp_path), dry_run=True)
