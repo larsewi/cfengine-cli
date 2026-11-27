@@ -45,7 +45,7 @@ def release(
     build = read_build_output(input_dir)
     verify_build_output(build)
 
-    planned = plan_release(project, version, build, input_dir, output_dir, debug)
+    planned = plan_release(project, version, build, output_dir, debug)
     _print_plan(planned)
 
     with output_lock(output_dir, dry_run=dry_run):

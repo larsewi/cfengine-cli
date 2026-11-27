@@ -23,6 +23,9 @@ class BuildOutput:
     tarballs: OutputDir
     # The Vagrant quickstart. Only enterprise builds have it.
     vagrant: OutputDir | None
+    # Name of the build dir, e.g. jenkins-master-nightly-pipeline-123.
+    # Nightlies link to the packages under it on buildcache.
+    name: str
 
 
 def _read_output_dir(directory: Path) -> OutputDir:
@@ -65,4 +68,4 @@ def read_build_output(input_dir: str) -> BuildOutput:
         raise UserError(f"No {LABEL_PREFIX}* directories in '{input_dir}'")
     if tarballs is None:
         raise UserError(f"No {TARBALLS_DIR} directory in '{input_dir}'")
-    return BuildOutput(labels, tarballs, vagrant)
+    return BuildOutput(labels, tarballs, vagrant, Path(input_dir).resolve().name)

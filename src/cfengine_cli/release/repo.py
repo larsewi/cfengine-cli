@@ -175,7 +175,7 @@ def update_repo(version: str, input_dir: str, output_dir: str, *, dry_run: bool)
 
     build = read_build_output(input_dir)
     verify_build_output(build)
-    planned = plan_release("community", version, build, input_dir, output_dir, False)
+    planned = plan_release("community", version, build, output_dir, False)
     files = plan_repo(planned, output_dir)
     _print_repo_plan(files)
     with output_lock(output_dir, dry_run=dry_run):

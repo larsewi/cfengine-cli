@@ -88,7 +88,7 @@ def _place(
     source: Path,
     release_path: str,
     name: str,
-    build_tag: str,
+    build_name: str,
     output_dir: str,
     debug: bool,
 ) -> tuple[Path | None, str]:
@@ -97,7 +97,7 @@ def _place(
     Debug releases link to the source on buildcache, under its own name.
     """
     if debug:
-        return None, f"{BUILDCACHE_URL}/{build_tag}/{source.parent.name}/{source.name}"
+        return None, f"{BUILDCACHE_URL}/{build_name}/{source.parent.name}/{source.name}"
     destination = Path(output_dir) / "release" / release_path / name
     return destination, f"{S3_URL}/{release_path}/{name}"
 
@@ -112,26 +112,24 @@ def plan_release(
     project: str,
     version: str,
     build: BuildOutput,
-    input_dir: str,
     output_dir: str,
     debug: bool,
 ) -> list[PlannedFile]:
     """Plan every file to publish: platform packages, then additional assets."""
-    return plan_packages(
-        project, version, build, input_dir, output_dir, debug
-    ) + plan_assets(project, version, build, input_dir, output_dir, debug)
+    return plan_packages(project, version, build, output_dir, debug) + plan_assets(
+        project, version, build, output_dir, debug
+    )
 
 
 def plan_packages(
     project: str,
     version: str,
     build: BuildOutput,
-    input_dir: str,
     output_dir: str,
     debug: bool,
 ) -> list[PlannedFile]:
     """Plan the platform packages, i.e. .deb, .rpm and .msi, of every label."""
-    build_tag = Path(input_dir).resolve().name
+    build_name = build.name
     planned: list[PlannedFile] = []
     platforms = {label: get_platform(label, project) for label in build.labels}
     for label in sorted(platforms, key=lambda label: platforms[label].sort_key()):
@@ -144,7 +142,7 @@ def plan_packages(
             if not source.name.endswith(PLATFORM_PACKAGE_SUFFIXES):
                 continue
             destination, url = _place(
-                source, release_path, source.name, build_tag, output_dir, debug
+                source, release_path, source.name, build_name, output_dir, debug
             )
             planned.append(
                 PlannedFile(
@@ -165,7 +163,7 @@ def _asset(
     source: Path,
     release_path: str,
     title: str,
-    build_tag: str,
+    build_name: str,
     output_dir: str,
     debug: bool,
     *,
@@ -177,7 +175,7 @@ def _asset(
 ) -> PlannedFile:
     """Plan an additional asset. name is the published file name, if not the source's."""
     destination, url = _place(
-        source, release_path, name or source.name, build_tag, output_dir, debug
+        source, release_path, name or source.name, build_name, output_dir, debug
     )
     return PlannedFile(
         source=source,
@@ -197,7 +195,6 @@ def plan_assets(
     project: str,
     version: str,
     build: BuildOutput,
-    input_dir: str,
     output_dir: str,
     debug: bool,
 ) -> list[PlannedFile]:
@@ -205,7 +202,7 @@ def plan_assets(
 
     In the same order as the legacy release.py lists them.
     """
-    build_tag = Path(input_dir).resolve().name
+    build_name = build.name
     misc = f"{_edition_root(project, version)}/misc"
 
     # Sort tarballs/ by kind
@@ -230,7 +227,7 @@ def plan_assets(
                 source,
                 misc,
                 "Masterfiles ready-to-install tarball",
-                build_tag,
+                build_name,
                 output_dir,
                 debug,
                 package="PACKAGES_VIRTUAL_PACKAGES_masterfiles",
@@ -246,7 +243,7 @@ def plan_assets(
                         source,
                         misc,
                         "Linux binary tarball (unsupported)",
-                        build_tag,
+                        build_name,
                         output_dir,
                         debug,
                         arch="x86_64",
@@ -264,7 +261,7 @@ def plan_assets(
                     source,
                     misc,
                     "Vagrant Environment",
-                    build_tag,
+                    build_name,
                     output_dir,
                     debug,
                     arch="Linux/Mac/Windows (Virtualbox)",
@@ -281,7 +278,7 @@ def plan_assets(
                     source,
                     "tarballs",
                     "Source code tarball",
-                    build_tag,
+                    build_name,
                     output_dir,
                     debug,
                     name=source.name.replace("cfengine-", "cfengine-community-", 1),
@@ -293,7 +290,7 @@ def plan_assets(
                     source,
                     "tarballs",
                     "Masterfiles source tarball",
-                    build_tag,
+                    build_name,
                     output_dir,
                     debug,
                 )

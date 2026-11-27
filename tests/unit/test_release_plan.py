@@ -56,13 +56,12 @@ def _build(
         {label: _output_dir(label, FILES[label]) for label in labels},
         _output_dir("tarballs", tarballs),
         _output_dir("vagrant", [VAGRANT]) if vagrant else None,
+        INPUT.name,
     )
 
 
 def test_plan_packages_enterprise() -> None:
-    planned = plan_packages(
-        "enterprise", "3.30.0", _build(HUB, AGENT), str(INPUT), OUTPUT, False
-    )
+    planned = plan_packages("enterprise", "3.30.0", _build(HUB, AGENT), OUTPUT, False)
     hub_deb = "cfengine-nova-hub_3.30.0-1_amd64.deb"
     hub_path = "enterprise/Enterprise-3.30.0/hub/debian_12_x86_64"
     agent_rpm = "cfengine-nova-3.30.0-1.el9.x86_64.rpm"
@@ -93,9 +92,7 @@ def test_plan_packages_enterprise() -> None:
 
 
 def test_plan_packages_community() -> None:
-    [planned] = plan_packages(
-        "community", "3.30.0", _build(AGENT), str(INPUT), OUTPUT, False
-    )
+    [planned] = plan_packages("community", "3.30.0", _build(AGENT), OUTPUT, False)
     rpm = "cfengine-nova-3.30.0-1.el9.x86_64.rpm"
     path = "community_binaries/Community-3.30.0/agent_rhel9_x86_64"
     assert planned.destination == Path(OUTPUT) / "release" / path / rpm
@@ -105,9 +102,7 @@ def test_plan_packages_community() -> None:
 
 
 def test_plan_packages_debug() -> None:
-    [planned] = plan_packages(
-        "enterprise", "master", _build(AGENT), str(INPUT), OUTPUT, True
-    )
+    [planned] = plan_packages("enterprise", "master", _build(AGENT), OUTPUT, True)
     assert planned.destination is None
     assert planned.url == (
         "http://buildcache.cfengine.com/packages/build-in-container/"
@@ -117,9 +112,7 @@ def test_plan_packages_debug() -> None:
 
 
 def test_plan_packages_windows() -> None:
-    [planned] = plan_packages(
-        "enterprise", "3.30.0", _build(WINDOWS), str(INPUT), OUTPUT, False
-    )
+    [planned] = plan_packages("enterprise", "3.30.0", _build(WINDOWS), OUTPUT, False)
     assert planned.source.name == "cfengine-nova-3.30.0-1-x86_64.msi"
     assert planned.url == (
         f"{S3}/enterprise/Enterprise-3.30.0/agent/windows_x86_64/"
@@ -132,7 +125,6 @@ def test_plan_assets_enterprise() -> None:
         "enterprise",
         "3.30.0",
         _build(RHEL7, vagrant=True),
-        str(INPUT),
         OUTPUT,
         False,
     )
@@ -169,9 +161,7 @@ def test_plan_assets_enterprise() -> None:
 
 
 def test_plan_assets_community() -> None:
-    planned = plan_assets(
-        "community", "3.30.0", _build(RHEL7), str(INPUT), OUTPUT, False
-    )
+    planned = plan_assets("community", "3.30.0", _build(RHEL7), OUTPUT, False)
     # Checks which assets are planned, and that they are in the same order as
     # the legacy release.py lists them
     assert [p.title for p in planned] == [
@@ -196,9 +186,7 @@ def test_plan_assets_community() -> None:
 
 
 def test_plan_assets_debug() -> None:
-    planned = plan_assets(
-        "community", "master", _build(RHEL7), str(INPUT), OUTPUT, True
-    )
+    planned = plan_assets("community", "master", _build(RHEL7), OUTPUT, True)
     assert all(p.destination is None for p in planned)
     buildcache = (
         "http://buildcache.cfengine.com/packages/build-in-container/"
@@ -212,27 +200,23 @@ def test_plan_assets_debug() -> None:
 
 
 def test_plan_assets_master_docs() -> None:
-    planned = plan_assets(
-        "enterprise", "master", _build(RHEL7), str(INPUT), OUTPUT, True
-    )
+    planned = plan_assets("enterprise", "master", _build(RHEL7), OUTPUT, True)
     assert planned[1].instructions is not None
     assert planned[1].instructions.startswith(f"{DOCS}/master/")
 
 
 def test_plan_assets_without_binary_tarball_label() -> None:
-    planned = plan_assets(
-        "enterprise", "3.30.0", _build(AGENT), str(INPUT), OUTPUT, False
-    )
+    planned = plan_assets("enterprise", "3.30.0", _build(AGENT), OUTPUT, False)
     assert [p.title for p in planned] == ["Masterfiles ready-to-install tarball"]
 
 
 def test_plan_assets_unexpected_tarball() -> None:
     build = _build(RHEL7, tarballs=["something-else.tar.gz"])
     with pytest.raises(UserError, match="Unexpected tarball"):
-        _ = plan_assets("enterprise", "3.30.0", build, str(INPUT), OUTPUT, False)
+        _ = plan_assets("enterprise", "3.30.0", build, OUTPUT, False)
 
 
 def test_plan_assets_community_vagrant() -> None:
     build = _build(RHEL7, vagrant=True)
     with pytest.raises(UserError, match="no Vagrant quickstart"):
-        _ = plan_assets("community", "3.30.0", build, str(INPUT), OUTPUT, False)
+        _ = plan_assets("community", "3.30.0", build, OUTPUT, False)
