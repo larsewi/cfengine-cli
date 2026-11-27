@@ -1,5 +1,5 @@
 from cfengine_cli.release.plan import PlannedFile
-from cfengine_cli.release.utils import SIGNED_SUFFIXES, check_tools, copy_file
+from cfengine_cli.release.utils import SIGNED_SUFFIXES, check_tools, copy_or_skip
 
 SIGNING_TOOLS = ("rpm", "rpmsign", "debsigs")
 
@@ -28,22 +28,9 @@ def publish(
         check_tools("Signing", SIGNING_TOOLS)
 
     for file in planned:
-        destination = file.destination
-        if destination is None:
-            continue
-        if destination.exists():
-            # Already published, e.g. by an earlier run that failed later on
-            print(f"Warning: Skipped existing '{destination}'")
+        if file.destination is None:
             continue
         signed = sign_packages and file.source.name.endswith(SIGNED_SUFFIXES)
-
-        if dry_run:
-            print(f"Would have copied '{file.source}' to '{destination}'")
-            if signed:
-                print(f"Would have signed '{destination}'")
-            continue
-
-        copy_file(file.source, destination, output_dir, signed=signed)
-        print(
-            f"Copied '{file.source}' to '{destination}'{' and signed' if signed else ''}"
+        copy_or_skip(
+            file.source, file.destination, output_dir, signed=signed, dry_run=dry_run
         )

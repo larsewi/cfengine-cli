@@ -188,6 +188,23 @@ def check_disk_space(copies: list[tuple[Path, Path | None]], output_dir: str) ->
         )
 
 
+def copy_or_skip(
+    source: Path, destination: Path, output_dir: str, *, signed: bool, dry_run: bool
+) -> None:
+    """Copy source to destination unless it exists, and print what is done."""
+    if destination.exists():
+        # Already there, e.g. from an earlier run that failed later on
+        print(f"Warning: Skipped existing '{destination}'")
+        return
+    if dry_run:
+        print(f"Would have copied '{source}' to '{destination}'")
+        if signed:
+            print(f"Would have signed '{destination}'")
+        return
+    copy_file(source, destination, output_dir, signed=signed)
+    print(f"Copied '{source}' to '{destination}'{' and signed' if signed else ''}")
+
+
 def copy_file(
     source: Path, destination: Path, output_dir: str, *, signed: bool
 ) -> None:

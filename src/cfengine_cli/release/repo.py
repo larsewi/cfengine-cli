@@ -10,7 +10,7 @@ from cfengine_cli.release.utils import (
     SIGNING_KEY,
     check_disk_space,
     check_tools,
-    copy_file,
+    copy_or_skip,
     exit_on_sigterm,
     is_signed_rpm,
     output_lock,
@@ -216,15 +216,9 @@ def update_repos(files: list[RepoFile], output_dir: str, *, dry_run: bool) -> No
     check_disk_space([(f.source, f.destination) for f in files], output_dir)
 
     for file in files:
-        if file.destination.exists():
-            # Already added, e.g. by an earlier run that failed later on
-            print(f"Warning: Skipped existing '{file.destination}'")
-            continue
-        if dry_run:
-            print(f"Would have copied '{file.source}' to '{file.destination}'")
-            continue
-        copy_file(file.source, file.destination, output_dir, signed=False)
-        print(f"Copied '{file.source}' to '{file.destination}'")
+        copy_or_skip(
+            file.source, file.destination, output_dir, signed=False, dry_run=dry_run
+        )
 
     repo = Path(output_dir) / REPO_DIR
     apt = any(file.destination.name.endswith(".deb") for file in files)
