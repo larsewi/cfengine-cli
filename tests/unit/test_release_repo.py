@@ -34,13 +34,9 @@ def test_plan_repo() -> None:
         _planned("PACKAGES_x86_64_linux_ubuntu_24", "cfengine-community_ubuntu.deb"),
         _planned(None, "cfengine-masterfiles-3.30.0.tar.gz"),
     ]
+    # The signed copies in the release dir
     assert plan_repo(planned, "/output") == [
-        # The unsigned build
-        RepoFile(
-            BUILD / "PACKAGES_x86_64_linux_debian_12" / deb,
-            REPO / "apt/packages/pool/main/C" / deb,
-        ),
-        # The signed copy in the release dir
+        RepoFile(RELEASE / deb, REPO / "apt/packages/pool/main/C" / deb),
         RepoFile(RELEASE / rpm, REPO / "yum/aarch64" / rpm),
     ]
 

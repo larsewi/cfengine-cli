@@ -130,6 +130,9 @@ test_repo() {
     find "$out/repo" -name '*.rpm' | while read -r rpm; do
         rpm --dbpath "$WORK/rpmdb" -K "$rpm" | grep -q "signatures OK"
     done
+    find "$out/repo" -name '*.deb' | while read -r deb; do
+        debsigs --verify "$deb" >/dev/null
+    done
     local stable="$out/repo/apt/packages/dists/stable"
     gpg --verify "$stable/Release.gpg" "$stable/Release" 2>/dev/null
     gpg --verify "$stable/InRelease" 2>/dev/null
@@ -137,14 +140,16 @@ test_repo() {
         gpg --verify "$repomd.asc" "$repomd" 2>/dev/null
     done
 
-    echo "Checking that update-repo refuses unsigned rpms"
+    echo "Checking that update-repo refuses unsigned packages"
     new_output community "$version" "$WORK/unsigned"
     release community "$version" "$WORK/unsigned" --no-sign >/dev/null
     if update_repo "$version" "$WORK/unsigned" >"$WORK/unsigned.log" 2>&1; then
-        echo "update-repo accepted unsigned rpms" >&2
+        echo "update-repo accepted unsigned packages" >&2
         exit 1
     fi
-    grep -q "Not signed" "$WORK/unsigned.log"
+    # Both kinds of package must be refused
+    grep "Not signed" "$WORK/unsigned.log" | grep -q '\.rpm'
+    grep "Not signed" "$WORK/unsigned.log" | grep -q '\.deb'
 }
 
 test_nightly() {

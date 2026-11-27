@@ -12,7 +12,7 @@ from cfengine_cli.release.utils import (
     check_tools,
     copy_or_skip,
     exit_on_sigterm,
-    is_signed_rpm,
+    is_signed,
     output_lock,
     run,
 )
@@ -94,14 +94,15 @@ def plan_repo(planned: list[PlannedFile], output_dir: str) -> list[RepoFile]:
         # Debug releases publish nothing
         if file.destination is None or file.package is None:
             continue
-        if file.package in APT_LABELS and file.source.name.endswith(".deb"):
-            # The unsigned build, as in the legacy release.py. apt trusts the
-            # signed Release file instead.
-            files.append(RepoFile(file.source, repo / APT_POOL / file.source.name))
-        elif file.package in YUM_LABELS and file.source.name.endswith(".rpm"):
-            # The signed copy in the release dir
+        # The signed copies in the release dir, so a package has the same
+        # checksum on the downloads page and in the repos. The legacy
+        # release.py adds the unsigned debs instead, which apt accepts too.
+        name = file.destination.name
+        if file.package in APT_LABELS and name.endswith(".deb"):
+            files.append(RepoFile(file.destination, repo / APT_POOL / name))
+        elif file.package in YUM_LABELS and name.endswith(".rpm"):
             yum_dir = repo / "yum" / YUM_LABELS[file.package]
-            files.append(RepoFile(file.destination, yum_dir / file.destination.name))
+            files.append(RepoFile(file.destination, yum_dir / name))
     return files
 
 
@@ -206,11 +207,7 @@ def update_repos(files: list[RepoFile], output_dir: str, *, dry_run: bool) -> No
         )
     check_tools("Repository", REPO_TOOLS)
     # E.g. released with --no-sign. yum clients with gpgcheck would fail.
-    unsigned = [
-        str(file.source)
-        for file in files
-        if file.source.name.endswith(".rpm") and not is_signed_rpm(file.source)
-    ]
+    unsigned = [str(file.source) for file in files if not is_signed(file.source)]
     if unsigned:
         raise UserError(f"Not signed, cannot add to the repo: {', '.join(unsigned)}")
     check_disk_space([(f.source, f.destination) for f in files], output_dir)
