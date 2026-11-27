@@ -8,6 +8,7 @@ from cfengine_cli.release.build_output import read_build_output
 from cfengine_cli.release.checksums import verify_build_output
 from cfengine_cli.release.plan import PlannedFile, plan_release
 from cfengine_cli.release.utils import (
+    SIGNING_KEY,
     check_disk_space,
     copy_file,
     exit_on_sigterm,
@@ -32,8 +33,6 @@ YUM_LABELS = {
     "PACKAGES_x86_64_linux_redhat_10": "x86_64",
     "PACKAGES_arm_64_linux_redhat_10": "aarch64",
 }
-# Signs the APT Release file
-RELEASE_KEY = "contact@northern.tech"
 REPO_TOOLS = ("apt-ftparchive", "createrepo_c", "gpg", "rpm")
 
 # The settings of apt-ftparchive.conf in infra, with paths from the repo dir.
@@ -140,7 +139,7 @@ def _update_apt(apt: Path, output_dir: str) -> None:
         _ = release_file.write_text(release)
 
         gpg = ["gpg", "--yes", "--armor", "--digest-algo=SHA256"]
-        gpg += ["--default-key", RELEASE_KEY]
+        gpg += ["--local-user", SIGNING_KEY]
         signature = str(temporary / "Release.gpg")
         _ = run([*gpg, "--detach-sign", "--output", signature, str(release_file)])
         # The same signature embedded, the modern way
@@ -161,6 +160,8 @@ def _update_yum(directory: Path) -> None:
             "gpg",
             "--yes",
             "--armor",
+            "--local-user",
+            SIGNING_KEY,
             "--detach-sign",
             str(directory / "repodata/repomd.xml"),
         ]

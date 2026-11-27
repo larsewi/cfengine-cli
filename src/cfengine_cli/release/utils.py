@@ -13,6 +13,9 @@ from typing import NoReturn
 from cfengine_cli.utils import UserError
 
 SIGNED_SUFFIXES = (".rpm", ".deb")
+# Signs the packages and the repo metadata. Always named, as gpg silently
+# falls back to the default key for --default-key or no key.
+SIGNING_KEY = "contact@northern.tech"
 # In the output dir. Also taken by the legacy release.py in infra.
 LOCK_FILE = ".lock"
 # Free space to keep on top of the files to copy, as in the legacy release.py.
@@ -93,12 +96,16 @@ def sign(path: Path, time: int) -> None:
                 "--resign",
                 "--digest-algo=sha256",
                 "--define",
+                f"_gpg_name {SIGNING_KEY}",
+                "--define",
                 f"_gpg_sign_cmd_extra_args {faked_time}",
                 str(path),
             ]
         )
     else:
-        _ = run(["debsigs", "--sign=origin", f"--gpgopts={faked_time}", str(path)])
+        # debsigs has no strict key option, its -k is --default-key
+        gpgopts = f"{faked_time} --local-user {SIGNING_KEY}"
+        _ = run(["debsigs", "--sign=origin", f"--gpgopts={gpgopts}", str(path)])
         # debsigs can print an error, yet exit 0 with an unsigned package.
         # So check that the signature is there and good.
         _ = run(["debsigs", "--verify", str(path)])
