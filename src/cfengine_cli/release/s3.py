@@ -1,8 +1,8 @@
-import shutil
 import subprocess
 from pathlib import Path
 
 from cfengine_cli.release.release_data import RELEASE_DATA_DIR
+from cfengine_cli.release.utils import check_tools
 from cfengine_cli.utils import UserError
 
 # As in sync-packages-to-s3.sh in infra
@@ -10,11 +10,6 @@ BUCKETS = {"test": "cfengine-repotest", "prod": "cfengine-package-repos"}
 RELEASE_DIRS = ("enterprise", "community_binaries", "tarballs")
 # Backups made by the legacy release.py
 REPO_EXCLUDES = ["--exclude", "*.old"]
-
-
-def check_upload_tools() -> None:
-    if shutil.which("aws") is None:
-        raise UserError("Upload tool not found: aws")
 
 
 def plan_syncs(
@@ -52,7 +47,7 @@ def publish_to_s3(
             print(f"Skipped '{directory}', not found")
     if not syncs:
         raise UserError(f"Nothing to publish in '{output_dir}'")
-    check_upload_tools()
+    check_tools("Upload", ("aws",))
 
     for directory, url, options in syncs:
         command = ["aws", "s3", "sync", str(directory), url, "--acl", "public-read"]

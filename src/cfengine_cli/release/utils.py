@@ -21,7 +21,6 @@ LOCK_FILE = ".lock"
 # Free space to keep on top of the files to copy, as in the legacy release.py.
 # Also covers the repo metadata that update-repo regenerates.
 DISK_SPACE_MARGIN = 1024**3
-SIGNING_TOOLS = ("rpm", "rpmsign", "debsigs")
 AR_MAGIC = b"!<arch>\n"
 
 
@@ -111,10 +110,11 @@ def sign(path: Path, time: int) -> None:
         _ = run(["debsigs", "--verify", str(path)])
 
 
-def check_signing_tools() -> None:
-    missing = [tool for tool in SIGNING_TOOLS if shutil.which(tool) is None]
+def check_tools(kind: str, tools: tuple[str, ...]) -> None:
+    """Fail before any work if a tool is missing, e.g. kind "Signing"."""
+    missing = [tool for tool in tools if shutil.which(tool) is None]
     if missing:
-        raise UserError(f"Signing tools not found: {', '.join(missing)}")
+        raise UserError(f"{kind} tools not found: {', '.join(missing)}")
 
 
 @contextmanager

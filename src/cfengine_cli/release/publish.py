@@ -1,5 +1,7 @@
 from cfengine_cli.release.plan import PlannedFile
-from cfengine_cli.release.utils import SIGNED_SUFFIXES, check_signing_tools, copy_file
+from cfengine_cli.release.utils import SIGNED_SUFFIXES, check_tools, copy_file
+
+SIGNING_TOOLS = ("rpm", "rpmsign", "debsigs")
 
 
 def _to_copy(planned: list[PlannedFile]) -> list[PlannedFile]:
@@ -23,7 +25,7 @@ def publish(
         file for file in _to_copy(planned) if file.source.name.endswith(SIGNED_SUFFIXES)
     ]
     if sign_packages and to_sign:
-        check_signing_tools()
+        check_tools("Signing", SIGNING_TOOLS)
 
     for file in planned:
         destination = file.destination

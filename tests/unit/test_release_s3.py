@@ -2,7 +2,7 @@ from pathlib import Path
 
 import pytest
 
-from cfengine_cli.release.s3 import check_upload_tools, plan_syncs, publish_to_s3
+from cfengine_cli.release.s3 import plan_syncs, publish_to_s3
 from cfengine_cli.utils import UserError
 
 
@@ -34,9 +34,10 @@ def test_publish_nothing(tmp_path: Path) -> None:
         _ = publish_to_s3(str(tmp_path), "prod", release_data_only=False, dry_run=True)
 
 
-def test_check_upload_tools_missing(
+def test_publish_missing_upload_tools(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     monkeypatch.setenv("PATH", str(tmp_path))
-    with pytest.raises(UserError, match="Upload tool not found: aws"):
-        check_upload_tools()
+    (tmp_path / "release-data").mkdir()
+    with pytest.raises(UserError, match="Upload tools not found: aws"):
+        _ = publish_to_s3(str(tmp_path), "prod", release_data_only=True, dry_run=True)

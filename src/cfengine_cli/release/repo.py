@@ -1,5 +1,4 @@
 import os
-import shutil
 import tempfile
 from dataclasses import dataclass
 from pathlib import Path
@@ -10,6 +9,7 @@ from cfengine_cli.release.plan import PlannedFile, plan_release
 from cfengine_cli.release.utils import (
     SIGNING_KEY,
     check_disk_space,
+    check_tools,
     copy_file,
     exit_on_sigterm,
     is_signed_rpm,
@@ -103,12 +103,6 @@ def plan_repo(planned: list[PlannedFile], output_dir: str) -> list[RepoFile]:
             yum_dir = repo / "yum" / YUM_LABELS[file.package]
             files.append(RepoFile(file.destination, yum_dir / file.destination.name))
     return files
-
-
-def _check_repo_tools() -> None:
-    missing = [tool for tool in REPO_TOOLS if shutil.which(tool) is None]
-    if missing:
-        raise UserError(f"Repository tools not found: {', '.join(missing)}")
 
 
 def _update_apt(apt: Path, output_dir: str) -> None:
@@ -210,7 +204,7 @@ def update_repos(files: list[RepoFile], output_dir: str, *, dry_run: bool) -> No
         raise UserError(
             f"Not found, run cfengine dev release first: {', '.join(missing)}"
         )
-    _check_repo_tools()
+    check_tools("Repository", REPO_TOOLS)
     # E.g. released with --no-sign. yum clients with gpgcheck would fail.
     unsigned = [
         str(file.source)
