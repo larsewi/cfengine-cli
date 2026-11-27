@@ -3,7 +3,7 @@ from pathlib import Path
 import pytest
 
 from cfengine_cli.release.plan import PlannedFile
-from cfengine_cli.release.repo import RepoFile, plan_repo, update_repos
+from cfengine_cli.release.update_repo import RepoFile, plan_repo, update_repos
 from cfengine_cli.utils import UserError
 
 BUILD = Path("/build")

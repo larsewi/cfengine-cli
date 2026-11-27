@@ -2,84 +2,42 @@ from pathlib import Path
 
 import pytest
 
-from cfengine_cli.release.plan import PlannedFile
-from cfengine_cli.release.publish import publish
+from cfengine_cli.release.publish import plan_syncs, publish
 from cfengine_cli.utils import UserError
 
 
-def _planned(source: Path, destination: Path | None) -> PlannedFile:
-    return PlannedFile(
-        source=source,
-        destination=destination,
-        url="url",
-        section="Section",
-        title="Title",
-        arch="x86_64",
-        classexpr="any",
-        package=None,
-    )
+def test_plan_syncs_prod() -> None:
+    urls = [url for _, url, _ in plan_syncs("/output", "prod", False)]
+    assert urls == [
+        "s3://cfengine-package-repos/enterprise",
+        "s3://cfengine-package-repos/community_binaries",
+        "s3://cfengine-package-repos/tarballs",
+        "s3://cfengine-package-repos/pub",
+        # Last, so it never links to files that are not uploaded yet
+        "s3://cfengine-package-repos/release-data",
+    ]
 
 
-def _built(tmp_path: Path, name: str) -> Path:
-    source = tmp_path / "build" / name
-    source.parent.mkdir(exist_ok=True)
-    _ = source.write_text("built")
-    return source
+def test_plan_syncs_test() -> None:
+    assert plan_syncs("/output", "test", False) == [
+        (Path("/output/repo"), "s3://cfengine-repotest/pub", ["--exclude", "*.old"])
+    ]
 
 
-@pytest.fixture
-def tarball(tmp_path: Path) -> Path:
-    """Copied, but not signed."""
-    return _built(tmp_path, "cfengine-masterfiles-3.30.0-1.pkg.tar.gz")
+def test_publish_release_data_only_needs_prod(tmp_path: Path) -> None:
+    with pytest.raises(UserError, match="--release-data-only needs --bucket prod"):
+        _ = publish(str(tmp_path), "test", release_data_only=True, dry_run=True)
 
 
-@pytest.fixture
-def rpm(tmp_path: Path) -> Path:
-    """Signed when copied, so these tests never copy it."""
-    return _built(tmp_path, "cfengine-nova-3.30.0-1.el9.x86_64.rpm")
+def test_publish_nothing(tmp_path: Path) -> None:
+    with pytest.raises(UserError, match="Nothing to publish"):
+        _ = publish(str(tmp_path), "prod", release_data_only=False, dry_run=True)
 
 
-def test_publish(tmp_path: Path, tarball: Path) -> None:
-    destination = tmp_path / "release" / tarball.name
-    publish([_planned(tarball, destination)], str(tmp_path), dry_run=False)
-    assert destination.read_text() == "built"
-    # No temporary dir left
-    assert list(tmp_path.glob(".tmp-*")) == []
-
-
-def test_publish_skips_existing(
-    tmp_path: Path, tarball: Path, capsys: pytest.CaptureFixture[str]
-) -> None:
-    destination = tmp_path / "release" / tarball.name
-    destination.parent.mkdir()
-    _ = destination.write_text("published")
-    publish([_planned(tarball, destination)], str(tmp_path), dry_run=False)
-    assert destination.read_text() == "published"
-    assert f"Warning: Skipped existing '{destination}'" in capsys.readouterr().out
-
-
-def test_publish_skips_debug(
-    tmp_path: Path, rpm: Path, capsys: pytest.CaptureFixture[str]
-) -> None:
-    publish([_planned(rpm, None)], str(tmp_path), dry_run=False)
-    assert capsys.readouterr().out == ""
-
-
-def test_publish_dry_run(
-    tmp_path: Path, tarball: Path, capsys: pytest.CaptureFixture[str]
-) -> None:
-    destination = tmp_path / "release" / tarball.name
-    publish([_planned(tarball, destination)], str(tmp_path), dry_run=True)
-    assert not destination.parent.exists()
-    assert capsys.readouterr().out == (
-        f"Would have copied '{tarball}' to '{destination}'\n"
-    )
-
-
-def test_publish_missing_signing_tools(
-    tmp_path: Path, rpm: Path, monkeypatch: pytest.MonkeyPatch
+def test_publish_missing_upload_tools(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     monkeypatch.setenv("PATH", str(tmp_path))
-    destination = tmp_path / "release" / rpm.name
-    with pytest.raises(UserError, match="Signing tools not found"):
-        publish([_planned(rpm, destination)], str(tmp_path), dry_run=True)
+    (tmp_path / "release-data").mkdir()
+    with pytest.raises(UserError, match="Upload tools not found: aws"):
+        _ = publish(str(tmp_path), "prod", release_data_only=True, dry_run=True)
