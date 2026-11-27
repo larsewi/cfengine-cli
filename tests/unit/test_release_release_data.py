@@ -18,14 +18,14 @@ def _setup(tmp_path: Path) -> tuple[list[PlannedFile], Path]:
     _ = source.write_bytes(b"tarball")
     planned = [
         PlannedFile(
-            source,
-            source,
-            "url",
-            "Additional Assets",
-            "Masterfiles ready-to-install tarball",
-            "no arch",
-            "!any",
-            None,
+            source=source,
+            destination=source,
+            url="url",
+            section="Additional Assets",
+            title="Masterfiles ready-to-install tarball",
+            arch="no arch",
+            classexpr="!any",
+            package=None,
         )
     ]
     directory = tmp_path / "out" / "release-data" / "community"

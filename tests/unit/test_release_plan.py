@@ -70,24 +70,24 @@ def test_plan_packages_enterprise() -> None:
     # The hub's .pkg.tar.gz is not a platform package, so it is skipped
     assert planned == [
         PlannedFile(
-            INPUT / HUB / hub_deb,
-            Path(OUTPUT) / "release" / hub_path / hub_deb,
-            f"{S3}/{hub_path}/{hub_deb}",
-            "Policy Server",
-            "Debian 12",
-            "x86_64",
-            "am_policy_hub.debian_12.x86_64",
-            HUB,
+            source=INPUT / HUB / hub_deb,
+            destination=Path(OUTPUT) / "release" / hub_path / hub_deb,
+            url=f"{S3}/{hub_path}/{hub_deb}",
+            section="Policy Server",
+            title="Debian 12",
+            arch="x86_64",
+            classexpr="am_policy_hub.debian_12.x86_64",
+            package=HUB,
         ),
         PlannedFile(
-            INPUT / AGENT / agent_rpm,
-            Path(OUTPUT) / "release" / agent_path / agent_rpm,
-            f"{S3}/{agent_path}/{agent_rpm}",
-            "Hosts (Clients)",
-            "Red Hat / CentOS 9",
-            "x86_64",
-            "!am_policy_hub.(redhat_9|centos_9).x86_64",
-            AGENT,
+            source=INPUT / AGENT / agent_rpm,
+            destination=Path(OUTPUT) / "release" / agent_path / agent_rpm,
+            url=f"{S3}/{agent_path}/{agent_rpm}",
+            section="Hosts (Clients)",
+            title="Red Hat / CentOS 9",
+            arch="x86_64",
+            classexpr="!am_policy_hub.(redhat_9|centos_9).x86_64",
+            package=AGENT,
         ),
     ]
 
@@ -151,19 +151,19 @@ def test_plan_assets_enterprise() -> None:
     misc = "enterprise/Enterprise-3.30.0/misc"
     tarball = "cfengine-nova-3.30.0-1.x86_64.pkg.tar.gz"
     assert planned[1] == PlannedFile(
-        INPUT / RHEL7 / tarball,
-        Path(OUTPUT) / "release" / misc / tarball,
-        f"{S3}/{misc}/{tarball}",
-        "Additional Assets",
-        "Linux binary tarball (unsupported)",
-        "x86_64",
-        "!any",
-        None,
-        (
+        source=INPUT / RHEL7 / tarball,
+        destination=Path(OUTPUT) / "release" / misc / tarball,
+        url=f"{S3}/{misc}/{tarball}",
+        section="Additional Assets",
+        title="Linux binary tarball (unsupported)",
+        arch="x86_64",
+        classexpr="!any",
+        package=None,
+        instructions=(
             f"{DOCS}/3.30/getting-started-installation-general-installation-"
             "installation-enterprise-generic-tarball.html"
         ),
-        BINARY_TARBALL_FOOTNOTE,
+        footnote=BINARY_TARBALL_FOOTNOTE,
     )
     assert planned[2].url == f"{S3}/{misc}/{VAGRANT}"
 

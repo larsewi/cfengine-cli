@@ -27,7 +27,8 @@ BINARY_TARBALL_DOCS = "getting-started-installation-general-installation-install
 VAGRANT_DOCS = "getting-started-installation-general-installation-installation-enterprise-vagrant.html"
 
 
-@dataclass(frozen=True)
+# Keyword only, as many fields are strings that are easy to swap
+@dataclass(frozen=True, kw_only=True)
 class PlannedFile:
     """A file to publish, and how it appears in the release metadata."""
 
@@ -147,14 +148,14 @@ def plan_packages(
             )
             planned.append(
                 PlannedFile(
-                    source,
-                    destination,
-                    url,
-                    _section(project, platform.hub),
-                    platform.title,
-                    platform.arch,
-                    platform.classexpr,
-                    label,
+                    source=source,
+                    destination=destination,
+                    url=url,
+                    section=_section(project, platform.hub),
+                    title=platform.title,
+                    arch=platform.arch,
+                    classexpr=platform.classexpr,
+                    package=label,
                 )
             )
     return planned
@@ -179,16 +180,16 @@ def _asset(
         source, release_path, name or source.name, build_tag, output_dir, debug
     )
     return PlannedFile(
-        source,
-        destination,
-        url,
-        ADDITIONAL_ASSETS,
-        title,
-        arch,
-        NO_CLASSEXPR,
-        package,
-        instructions,
-        footnote,
+        source=source,
+        destination=destination,
+        url=url,
+        section=ADDITIONAL_ASSETS,
+        title=title,
+        arch=arch,
+        classexpr=NO_CLASSEXPR,
+        package=package,
+        instructions=instructions,
+        footnote=footnote,
     )
 
 

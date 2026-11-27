@@ -13,14 +13,14 @@ REPO = Path("/output/repo")
 
 def _planned(label: str | None, name: str, debug: bool = False) -> PlannedFile:
     return PlannedFile(
-        BUILD / str(label) / name,
-        None if debug else RELEASE / name,
-        "url",
-        "Section",
-        "Title",
-        "x86_64",
-        "any",
-        label,
+        source=BUILD / str(label) / name,
+        destination=None if debug else RELEASE / name,
+        url="url",
+        section="Section",
+        title="Title",
+        arch="x86_64",
+        classexpr="any",
+        package=label,
     )
 
 

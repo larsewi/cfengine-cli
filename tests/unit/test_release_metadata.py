@@ -322,26 +322,26 @@ def _write(path: Path, content: bytes) -> Path:
 
 def test_build_artifacts(tmp_path: Path) -> None:
     deb = PlannedFile(
-        _write(tmp_path / "unsigned.deb", b"unsigned"),
-        _write(tmp_path / "signed.deb", b"signed"),
-        "https://example.com/signed.deb",
-        "Binary packages",
-        "Debian 12",
-        "x86_64",
-        "debian_12.x86_64",
-        "PACKAGES_x86_64_linux_debian_12",
+        source=_write(tmp_path / "unsigned.deb", b"unsigned"),
+        destination=_write(tmp_path / "signed.deb", b"signed"),
+        url="https://example.com/signed.deb",
+        section="Binary packages",
+        title="Debian 12",
+        arch="x86_64",
+        classexpr="debian_12.x86_64",
+        package="PACKAGES_x86_64_linux_debian_12",
     )
     tarball = PlannedFile(
-        _write(tmp_path / "source.tar.gz", b"tarball"),
-        _write(tmp_path / "copy.tar.gz", b"tarball"),
-        "https://example.com/copy.tar.gz",
-        "Additional Assets",
-        "Linux binary tarball (unsupported)",
-        "x86_64",
-        "!any",
-        None,
-        "https://docs.example.com",
-        "Not supported",
+        source=_write(tmp_path / "source.tar.gz", b"tarball"),
+        destination=_write(tmp_path / "copy.tar.gz", b"tarball"),
+        url="https://example.com/copy.tar.gz",
+        section="Additional Assets",
+        title="Linux binary tarball (unsupported)",
+        arch="x86_64",
+        classexpr="!any",
+        package=None,
+        instructions="https://docs.example.com",
+        footnote="Not supported",
     )
     artifacts, footnotes = build_artifacts([deb, tarball], dry_run=False)
     assert artifacts == {
@@ -387,14 +387,14 @@ def test_build_artifacts(tmp_path: Path) -> None:
 def test_build_artifacts_dry_run(tmp_path: Path) -> None:
     # Nothing is copied in a dry run, so the source is checksummed
     deb = PlannedFile(
-        _write(tmp_path / "unsigned.deb", b"unsigned"),
-        tmp_path / "not-copied.deb",
-        "url",
-        "Binary packages",
-        "Debian 12",
-        "x86_64",
-        "debian_12.x86_64",
-        "PACKAGES_x86_64_linux_debian_12",
+        source=_write(tmp_path / "unsigned.deb", b"unsigned"),
+        destination=tmp_path / "not-copied.deb",
+        url="url",
+        section="Binary packages",
+        title="Debian 12",
+        arch="x86_64",
+        classexpr="debian_12.x86_64",
+        package="PACKAGES_x86_64_linux_debian_12",
     )
     artifacts, _ = build_artifacts([deb], dry_run=True)
     sha256 = artifacts["Binary packages"][0]["SHA256"]

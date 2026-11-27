@@ -9,7 +9,14 @@ from cfengine_cli.utils import UserError
 
 def _planned(source: Path, destination: Path | None) -> PlannedFile:
     return PlannedFile(
-        source, destination, "url", "Section", "Title", "x86_64", "any", None
+        source=source,
+        destination=destination,
+        url="url",
+        section="Section",
+        title="Title",
+        arch="x86_64",
+        classexpr="any",
+        package=None,
     )
 
 
