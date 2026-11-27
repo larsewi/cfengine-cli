@@ -112,7 +112,7 @@ def _check_repo_tools() -> None:
         raise UserError(f"Repository tools not found: {', '.join(missing)}")
 
 
-def _update_apt(apt: Path) -> None:
+def _update_apt(apt: Path, output_dir: str) -> None:
     """Regenerate and sign the APT metadata, as update-apt-repo.sh in infra."""
     stable = apt / "packages/dists/stable"
     for directory in (
@@ -125,23 +125,32 @@ def _update_apt(apt: Path) -> None:
     ):
         directory.mkdir(parents=True, exist_ok=True)
 
-    with tempfile.TemporaryDirectory() as tmp:
-        conf = Path(tmp) / "apt-ftparchive.conf"
+    # In the output dir, so the renames below are atomic
+    with tempfile.TemporaryDirectory(dir=output_dir, prefix=".tmp-") as tmp:
+        temporary = Path(tmp)
+        conf = temporary / "apt-ftparchive.conf"
         _ = conf.write_text(APT_FTPARCHIVE_CONF.format(apt=apt))
-        release_conf = Path(tmp) / "apt-ftparchiveRelease.conf"
+        release_conf = temporary / "apt-ftparchiveRelease.conf"
         _ = release_conf.write_text(APT_FTPARCHIVE_RELEASE_CONF)
         _ = run(["apt-ftparchive", "generate", str(conf)])
         release = run(
             ["apt-ftparchive", "-c", str(release_conf), "release", str(stable)]
         )
-    _ = (stable / "Release").write_text(release)
+        release_file = temporary / "Release"
+        _ = release_file.write_text(release)
 
-    gpg = ["gpg", "--yes", "--armor", "--digest-algo=SHA256"]
-    gpg += ["--default-key", RELEASE_KEY]
-    release_file = str(stable / "Release")
-    _ = run([*gpg, "--detach-sign", "--output", f"{release_file}.gpg", release_file])
-    # The same signature embedded, the modern way
-    _ = run([*gpg, "--clearsign", "--output", str(stable / "InRelease"), release_file])
+        gpg = ["gpg", "--yes", "--armor", "--digest-algo=SHA256"]
+        gpg += ["--default-key", RELEASE_KEY]
+        signature = str(temporary / "Release.gpg")
+        _ = run([*gpg, "--detach-sign", "--output", signature, str(release_file)])
+        # The same signature embedded, the modern way
+        in_release = str(temporary / "InRelease")
+        _ = run([*gpg, "--clearsign", "--output", in_release, str(release_file)])
+
+        # Signed first, then all moved in at once, so Release never disagrees
+        # with its signatures while gpg runs
+        for name in ("Release", "Release.gpg", "InRelease"):
+            _ = (temporary / name).rename(stable / name)
 
 
 def _update_yum(directory: Path) -> None:
@@ -231,7 +240,7 @@ def update_repos(files: list[RepoFile], output_dir: str, *, dry_run: bool) -> No
         if dry_run:
             print(f"Would have updated the APT repo in '{repo / 'apt'}'")
         else:
-            _update_apt(repo / "apt")
+            _update_apt(repo / "apt", output_dir)
             print(f"Updated the APT repo in '{repo / 'apt'}'")
     for yum_dir in yum_dirs:
         if dry_run:
