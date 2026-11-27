@@ -20,33 +20,40 @@ def _planned(source: Path, destination: Path | None) -> PlannedFile:
     )
 
 
-@pytest.fixture
-def rpm(tmp_path: Path) -> Path:
-    source = tmp_path / "build" / "cfengine-nova-3.30.0-1.el9.x86_64.rpm"
-    source.parent.mkdir()
+def _built(tmp_path: Path, name: str) -> Path:
+    source = tmp_path / "build" / name
+    source.parent.mkdir(exist_ok=True)
     _ = source.write_text("built")
     return source
 
 
-def test_publish(tmp_path: Path, rpm: Path) -> None:
-    destination = tmp_path / "release" / rpm.name
-    publish(
-        [_planned(rpm, destination)], str(tmp_path), sign_packages=False, dry_run=False
-    )
+@pytest.fixture
+def tarball(tmp_path: Path) -> Path:
+    """Copied, but not signed."""
+    return _built(tmp_path, "cfengine-masterfiles-3.30.0-1.pkg.tar.gz")
+
+
+@pytest.fixture
+def rpm(tmp_path: Path) -> Path:
+    """Signed when copied, so these tests never copy it."""
+    return _built(tmp_path, "cfengine-nova-3.30.0-1.el9.x86_64.rpm")
+
+
+def test_publish(tmp_path: Path, tarball: Path) -> None:
+    destination = tmp_path / "release" / tarball.name
+    publish([_planned(tarball, destination)], str(tmp_path), dry_run=False)
     assert destination.read_text() == "built"
     # No temporary dir left
     assert list(tmp_path.glob(".tmp-*")) == []
 
 
 def test_publish_skips_existing(
-    tmp_path: Path, rpm: Path, capsys: pytest.CaptureFixture[str]
+    tmp_path: Path, tarball: Path, capsys: pytest.CaptureFixture[str]
 ) -> None:
-    destination = tmp_path / "release" / rpm.name
+    destination = tmp_path / "release" / tarball.name
     destination.parent.mkdir()
     _ = destination.write_text("published")
-    publish(
-        [_planned(rpm, destination)], str(tmp_path), sign_packages=False, dry_run=False
-    )
+    publish([_planned(tarball, destination)], str(tmp_path), dry_run=False)
     assert destination.read_text() == "published"
     assert f"Warning: Skipped existing '{destination}'" in capsys.readouterr().out
 
@@ -54,20 +61,18 @@ def test_publish_skips_existing(
 def test_publish_skips_debug(
     tmp_path: Path, rpm: Path, capsys: pytest.CaptureFixture[str]
 ) -> None:
-    publish([_planned(rpm, None)], str(tmp_path), sign_packages=False, dry_run=False)
+    publish([_planned(rpm, None)], str(tmp_path), dry_run=False)
     assert capsys.readouterr().out == ""
 
 
 def test_publish_dry_run(
-    tmp_path: Path, rpm: Path, capsys: pytest.CaptureFixture[str]
+    tmp_path: Path, tarball: Path, capsys: pytest.CaptureFixture[str]
 ) -> None:
-    destination = tmp_path / "release" / rpm.name
-    publish(
-        [_planned(rpm, destination)], str(tmp_path), sign_packages=False, dry_run=True
-    )
+    destination = tmp_path / "release" / tarball.name
+    publish([_planned(tarball, destination)], str(tmp_path), dry_run=True)
     assert not destination.parent.exists()
     assert capsys.readouterr().out == (
-        f"Would have copied '{rpm}' to '{destination}'\n"
+        f"Would have copied '{tarball}' to '{destination}'\n"
     )
 
 
@@ -77,9 +82,4 @@ def test_publish_missing_signing_tools(
     monkeypatch.setenv("PATH", str(tmp_path))
     destination = tmp_path / "release" / rpm.name
     with pytest.raises(UserError, match="Signing tools not found"):
-        publish(
-            [_planned(rpm, destination)],
-            str(tmp_path),
-            sign_packages=True,
-            dry_run=True,
-        )
+        publish([_planned(rpm, destination)], str(tmp_path), dry_run=True)

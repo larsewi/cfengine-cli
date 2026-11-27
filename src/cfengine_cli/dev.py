@@ -93,7 +93,6 @@ def dispatch_dev_subcommand(subcommand, args) -> int:
             version=args.version,
             input_dir=args.input,
             output_dir=args.output,
-            sign=not args.no_sign,
             dry_run=args.dry_run,
         )
     if subcommand == "publish":

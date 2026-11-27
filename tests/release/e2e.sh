@@ -139,17 +139,6 @@ test_repo() {
     for repomd in "$out"/repo/yum/*/repodata/repomd.xml; do
         gpg --verify "$repomd.asc" "$repomd" 2>/dev/null
     done
-
-    echo "Checking that update-repo refuses unsigned packages"
-    new_output community "$version" "$WORK/unsigned"
-    release community "$version" "$WORK/unsigned" --no-sign >/dev/null
-    if update_repo "$version" "$WORK/unsigned" >"$WORK/unsigned.log" 2>&1; then
-        echo "update-repo accepted unsigned packages" >&2
-        exit 1
-    fi
-    # Both kinds of package must be refused
-    grep "Not signed" "$WORK/unsigned.log" | grep -q '\.rpm'
-    grep "Not signed" "$WORK/unsigned.log" | grep -q '\.deb'
 }
 
 test_nightly() {

@@ -20,7 +20,6 @@ def release(
     version: str,
     input_dir: str,
     output_dir: str,
-    sign: bool,
     dry_run: bool,
 ) -> int:
     branch = release_branch(project, version)
@@ -38,7 +37,6 @@ def release(
         input_dir,
         output_dir,
         debug,
-        sign,
         dry_run,
     )
 
@@ -50,7 +48,7 @@ def release(
 
     with output_lock(output_dir, dry_run=dry_run):
         check_disk_space([(f.source, f.destination) for f in planned], output_dir)
-        publish(planned, output_dir, sign_packages=sign, dry_run=dry_run)
+        publish(planned, output_dir, dry_run=dry_run)
         write_release_data(
             project,
             version,
@@ -84,7 +82,6 @@ def _print_summary(
     input_dir: str,
     output_dir: str,
     debug: bool,
-    sign: bool,
     dry_run: bool,
 ) -> None:
     print(f"Releasing {project} {version} (branch {branch})")
@@ -92,4 +89,3 @@ def _print_summary(
     print(f"  output: {output_dir}")
     print(f"  debug:  {debug}")
     print(f"  dry run: {dry_run}")
-    print(f"  sign packages: {'yes' if sign else 'skipped'}")

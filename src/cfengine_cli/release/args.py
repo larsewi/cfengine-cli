@@ -43,9 +43,6 @@ def add_release_args(sp: argparse.ArgumentParser) -> None:
         help="Root directory to write release/ and release-data/ to",
     )
     _ = sp.add_argument(
-        "--no-sign", action="store_true", help="Don't sign the packages"
-    )
-    _ = sp.add_argument(
         "--dry-run", action="store_true", help="Only print what would be done"
     )
 

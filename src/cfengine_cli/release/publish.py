@@ -13,9 +13,7 @@ def _to_copy(planned: list[PlannedFile]) -> list[PlannedFile]:
     ]
 
 
-def publish(
-    planned: list[PlannedFile], output_dir: str, *, sign_packages: bool, dry_run: bool
-) -> None:
+def publish(planned: list[PlannedFile], output_dir: str, *, dry_run: bool) -> None:
     """Copy the planned files to their destinations, signing .rpm and .deb.
 
     Existing destinations are skipped, so a failed run can be resumed. Files
@@ -24,13 +22,13 @@ def publish(
     to_sign = [
         file for file in _to_copy(planned) if file.source.name.endswith(SIGNED_SUFFIXES)
     ]
-    if sign_packages and to_sign:
+    if to_sign:
         check_tools("Signing", SIGNING_TOOLS)
 
     for file in planned:
         if file.destination is None:
             continue
-        signed = sign_packages and file.source.name.endswith(SIGNED_SUFFIXES)
+        signed = file.source.name.endswith(SIGNED_SUFFIXES)
         copy_or_skip(
             file.source, file.destination, output_dir, signed=signed, dry_run=dry_run
         )

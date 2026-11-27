@@ -34,9 +34,9 @@ class PlannedFile:
 
     # The file to release, as built. In the build output, never modified.
     source: Path
-    # The published copy in the release dir. .rpm and .deb copies are signed,
-    # unless --no-sign. None for debug releases (nightlies): nothing is
-    # copied, and the metadata links to the source on buildcache.
+    # The published copy in the release dir. .rpm and .deb copies are signed.
+    # None for debug releases (nightlies): nothing is copied, and the metadata
+    # links to the source on buildcache.
     destination: Path | None
     # Download link in the metadata. For releases, where destination ends up
     # on S3 once uploaded. For debug releases (nightlies), the source on

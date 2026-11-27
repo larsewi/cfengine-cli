@@ -206,7 +206,8 @@ def update_repos(files: list[RepoFile], output_dir: str, *, dry_run: bool) -> No
             f"Not found, run cfengine dev release first: {', '.join(missing)}"
         )
     check_tools("Repository", REPO_TOOLS)
-    # E.g. released with --no-sign. yum clients with gpgcheck would fail.
+    # cfengine dev release always signs, so this only fails if the release
+    # dir was changed by hand. yum clients with gpgcheck would fail.
     unsigned = [str(file.source) for file in files if not is_signed(file.source)]
     if unsigned:
         raise UserError(f"Not signed, cannot add to the repo: {', '.join(unsigned)}")
