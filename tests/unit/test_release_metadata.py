@@ -288,7 +288,8 @@ def test_version_document_keys(
     project: str, version: str, branch: str, keys: list[str]
 ) -> None:
     doc = version_document(project, version, branch, {}, [], TODAY)
-    assert set(doc) == {"project", "version", "artifacts", "footnotes", *keys}
+    # In the key order of the legacy release.py
+    assert list(doc) == ["project", "version", *keys, "artifacts", "footnotes"]
     if "nightly_release_date" in keys:
         assert doc.get("nightly_release_date") == "2027-06-01"
     if "note" in keys:

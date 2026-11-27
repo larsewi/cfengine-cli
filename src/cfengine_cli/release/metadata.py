@@ -57,9 +57,11 @@ class VersionDocument(TypedDict, total=False):
     version: Required[str]  # The title, from version_title()
     nightly_release_date: str  # Only for nightlies
     note: str  # Only for non-LTS versions
+    # Always set, but not Required, so version_document() can add them after
+    # the optional keys. The key order matters, see version_document().
     # Section title, e.g. "Policy Server", mapped to its artifacts
-    artifacts: Required[dict[str, list[Artifact]]]
-    footnotes: Required[list[str]]
+    artifacts: dict[str, list[Artifact]]
+    footnotes: list[str]
 
 
 NON_LTS_NOTE = (
@@ -292,11 +294,11 @@ def version_document(
     today: datetime.date,
 ) -> VersionDocument:
     """Return the contents of release-data/<project>/<version>.json."""
+    # Built in the key order of the legacy release.py, with the optional keys
+    # before the artifacts
     doc: VersionDocument = {
         "project": project,
         "version": version_title(project, version),
-        "artifacts": artifacts,
-        "footnotes": footnotes,
     }
     if is_nightly(version):
         doc["nightly_release_date"] = str(today)
@@ -304,4 +306,6 @@ def version_document(
     # community master nightlies have no note, while enterprise ones do.
     if not _in_lts_branches(version, branch):
         doc["note"] = NON_LTS_NOTE
+    doc["artifacts"] = artifacts
+    doc["footnotes"] = footnotes
     return doc

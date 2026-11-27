@@ -50,7 +50,7 @@ def test_write_release_data(tmp_path: Path) -> None:
     text = (directory / "3.30.0.json").read_text()
     document = cast(VersionDocument, json.loads(text))
     assert document["version"] == "3.30.0 LTS"
-    assert list(document["artifacts"]) == ["Additional Assets"]
+    assert list(document.get("artifacts", {})) == ["Additional Assets"]
     text = (directory / "releases.json").read_text()
     releases = cast(ReleasesData, json.loads(text))
     assert [r["version"] for r in releases["releases"]] == ["3.30.0"]
