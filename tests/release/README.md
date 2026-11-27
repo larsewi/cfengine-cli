@@ -3,7 +3,7 @@
 `e2e.sh` tests `cfengine dev release` and `cfengine dev update-repo` with the
 real packaging and signing tools. It recreates published community and
 enterprise releases from small fake packages, and compares the release data
-with the published one. CI runs it
+with the published one. It also checks a master nightly. CI runs it
 as its own job, see `.github/workflows/make-check.yml`.
 
 ```bash

@@ -147,11 +147,54 @@ test_repo() {
     grep -q "Not signed" "$WORK/unsigned.log"
 }
 
+test_nightly() {
+    local out="$WORK/out-nightly"
+
+    echo "== community master nightly"
+    new_output community master "$out"
+    # Any build will do, the version alone makes it a nightly
+    cfengine dev release --project community --version master \
+        --input "$WORK/build-community-3.29.0" --output "$out"
+
+    echo "Checking that nothing is copied"
+    if [ -e "$out/release" ]; then
+        echo "Nightly copied files to $out/release" >&2
+        exit 1
+    fi
+
+    echo "Checking the release data"
+    python3 - "$out/release-data/community" <<'EOF'
+import json, sys
+from pathlib import Path
+
+directory = Path(sys.argv[1])
+document = json.loads((directory / "master.json").read_text())
+assert "nightly_release_date" in document
+# Community master is in lts_branches, so it has no non-LTS note
+assert "note" not in document
+# Nightlies link to the build on buildcache
+buildcache = "http://buildcache.cfengine.com/packages/build-in-container"
+for artifacts in document["artifacts"].values():
+    for artifact in artifacts:
+        assert artifact["URL"].startswith(f"{buildcache}/build-community-3.29.0/")
+
+releases = json.loads((directory / "releases.json").read_text())["releases"]
+master = next(r for r in releases if r["version"] == "master")
+assert master["debug"] is True
+assert master["release_date"] == "nightly"
+assert master["lts_branch"] == "nightly-master"
+# Nightlies never become the latest release
+assert next(r for r in releases if r.get("latest"))["version"] == "3.29.0"
+EOF
+}
+
 # A non-LTS minor release, the latest
 test_release community 3.29.0
 test_repo 3.29.0
 test_release enterprise 3.29.0
 # An LTS patch release on an older branch, so not the latest
 test_release community 3.27.3
+# Uses the community 3.29.0 build from above
+test_nightly
 
 echo "All release end-to-end tests passed"
