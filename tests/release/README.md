@@ -1,8 +1,9 @@
 # Release end-to-end test
 
 `e2e.sh` tests `cfengine dev release` and `cfengine dev update-repo` with the
-real packaging and signing tools. It recreates a published release from small
-fake packages and compares the release data with the published one. CI runs it
+real packaging and signing tools. It recreates published community and
+enterprise releases from small fake packages, and compares the release data
+with the published one. CI runs it
 as its own job, see `.github/workflows/make-check.yml`.
 
 ```bash
@@ -15,6 +16,6 @@ createrepo_c. It uses its own gpg key, never a real keyring.
 ## Data
 
 The files in `data/` are release data from
-`https://cfengine-package-repos.s3.amazonaws.com/release-data/community/`:
-`community-3.29.0.json` and `community-releases.json`. They are excluded from
-prettier, to keep the published format.
+`https://cfengine-package-repos.s3.amazonaws.com/release-data/`, named
+`<project>-<version>.json` and `<project>-releases.json`. They are excluded
+from prettier, to keep the published format.
